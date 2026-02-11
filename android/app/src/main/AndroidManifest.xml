@@ -1,8 +1,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.ev_community_app">
 
-    <!-- ✅ Internet permission required for Google Maps -->
+    <!-- ✅ Internet permission -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- ✅ Location permissions (VERY IMPORTANT) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
     <application
         android:label="ev_community_app"
@@ -12,7 +16,7 @@
         <!-- ✅ Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyDyDPkaNNUUqNVWv0zjPCib3yF-FlduJ3I"/>
+            android:value="YOUR_API_KEY_HERE"/>
 
         <activity
             android:name=".MainActivity"
@@ -35,14 +39,12 @@
 
         </activity>
 
-        <!-- Required by Flutter -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2"/>
 
     </application>
 
-    <!-- Required by Flutter for text processing -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
@@ -51,4 +53,5 @@
     </queries>
 
 </manifest>
+
 
