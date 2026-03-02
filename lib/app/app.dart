@@ -8,17 +8,25 @@ class EVCommunityApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
       title: 'VoltShare',
+
+      debugShowCheckedModeBanner: false,
+
       theme: ThemeData(
-        scaffoldBackgroundColor: AppColors.background,
         fontFamily: 'Roboto',
-        colorScheme: ColorScheme.light(
+
+        scaffoldBackgroundColor: AppColors.background,
+
+        colorScheme: const ColorScheme.light(
           primary: AppColors.primaryPurple,
           secondary: AppColors.secondaryGreen,
         ),
+
+        appBarTheme: const AppBarTheme(elevation: 0, centerTitle: true),
       ),
+
       initialRoute: AppRoutes.splash,
+
       routes: AppRoutes.routes,
     );
   }

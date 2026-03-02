@@ -11,7 +11,7 @@
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 
     <application
-        android:label="ev_community_app"
+        android:label="VoltShare"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
@@ -31,6 +31,9 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+             <meta-data
+                android:name="com.google.android.geo.API_KEY"
+                android:value="AIzaSyDyDPkaNNUUqNVWv0zjPCib3yF-FlduJ3I"/>
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>

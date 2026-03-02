@@ -7,30 +7,18 @@ class UserService {
 
   static Future<void> saveUser(UserModel user) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _userKey,
-      jsonEncode({
-        'name': user.name,
-        'email': user.email,
-        'phone': user.phone,
-        'photoUrl': user.photoUrl,
-      }),
-    );
+
+    await prefs.setString(_userKey, jsonEncode(user.toJson()));
   }
 
   static Future<UserModel?> getUser() async {
     final prefs = await SharedPreferences.getInstance();
+
     final data = prefs.getString(_userKey);
 
     if (data == null) return null;
 
-    final json = jsonDecode(data);
-    return UserModel(
-      name: json['name'],
-      email: json['email'],
-      phone: json['phone'],
-      photoUrl: json['photoUrl'],
-    );
+    return UserModel.fromJson(jsonDecode(data));
   }
 
   static Future<void> clearUser() async {

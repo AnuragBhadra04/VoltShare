@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../core/constants/colors.dart';
-import 'otp_screen.dart';
-import '../models/user_model.dart';
+import '../permissions/permission_screen.dart';
 import '../services/user_service.dart';
+import '../models/user_model.dart';
 
 class PhoneDetailsScreen extends StatefulWidget {
   const PhoneDetailsScreen({super.key});
@@ -23,6 +23,11 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
   late Animation<double> _fade;
   late Animation<Offset> _slide;
 
+  bool _loading = false;
+
+  // =====================================================
+  // INIT ANIMATION
+  // =====================================================
   @override
   void initState() {
     super.initState();
@@ -33,6 +38,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
     );
 
     _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
+
     _slide = Tween<Offset>(
       begin: const Offset(0, 0.08),
       end: Offset.zero,
@@ -41,6 +47,9 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
     _controller.forward();
   }
 
+  // =====================================================
+  // DISPOSE
+  // =====================================================
   @override
   void dispose() {
     _controller.dispose();
@@ -50,48 +59,82 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
     super.dispose();
   }
 
-  // ✅ FIXED ONCE AND FOR ALL
+  // =====================================================
+  // DEV MODE LOGIN (BYPASS OTP)
+  // =====================================================
   Future<void> _continue() async {
-    if (_formKey.currentState!.validate()) {
-      // 🔹 SAVE USER PROFILE (PHONE LOGIN)
-      await UserService.saveUser(
-        UserModel(
-          name: _nameController.text.trim(),
-          phone: _phoneController.text.trim(),
-        ),
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _loading = true);
+
+    try {
+      final name = _nameController.text.trim();
+      final phone = _phoneController.text.trim();
+      final age = _ageController.text.trim();
+
+      // Create fake user locally
+      final user = UserModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        name: name,
+        phone: phone,
+        email: null,
+        photoUrl: null,
+        role: null,
+        createdAt: DateTime.now(),
       );
+
+      // Save locally
+      await UserService.saveUser(user);
 
       if (!mounted) return;
 
-      Navigator.push(
+      // Go to Permission Screen directly
+      Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const OTPScreen()),
+        MaterialPageRoute(builder: (_) => const PermissionScreen()),
       );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error: $e")));
     }
+
+    setState(() => _loading = false);
   }
 
+  // =====================================================
+  // UI
+  // =====================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.titleText),
       ),
+
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 420),
+
           child: FadeTransition(
             opacity: _fade,
+
             child: SlideTransition(
               position: _slide,
+
               child: Padding(
                 padding: const EdgeInsets.all(24),
+
                 child: Form(
                   key: _formKey,
+
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
+
                     children: [
                       const Text(
                         'Create Account',
@@ -104,59 +147,69 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
 
                       const SizedBox(height: 28),
 
+                      // NAME
                       _field(
                         controller: _nameController,
                         hint: 'Full Name',
                         icon: Icons.person,
-                        validator: (v) => v!.isEmpty ? 'Enter your name' : null,
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Enter your name' : null,
                       ),
 
                       const SizedBox(height: 16),
 
+                      // AGE
                       _field(
                         controller: _ageController,
                         hint: 'Age',
                         icon: Icons.cake,
                         keyboard: TextInputType.number,
-                        validator: (v) {
-                          if (v!.isEmpty) return 'Enter age';
-                          final age = int.tryParse(v);
-                          return null;
-                        },
+                        validator: (v) =>
+                            v == null || v.isEmpty ? 'Enter age' : null,
                       ),
 
                       const SizedBox(height: 16),
 
+                      // PHONE
                       _field(
                         controller: _phoneController,
                         hint: 'Phone Number',
                         icon: Icons.phone,
                         keyboard: TextInputType.phone,
-                        validator: (v) =>
-                            v!.length != 10 ? 'Enter valid phone number' : null,
+                        validator: (v) => v == null || v.length != 10
+                            ? 'Enter valid phone number'
+                            : null,
                       ),
 
                       const SizedBox(height: 28),
 
+                      // BUTTON
                       SizedBox(
                         width: double.infinity,
                         height: 54,
+
                         child: ElevatedButton(
-                          onPressed: _continue,
+                          onPressed: _loading ? null : _continue,
+
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primaryPurple,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(18),
                             ),
                           ),
-                          child: const Text(
-                            'Send OTP',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+
+                          child: _loading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  'Continue',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
                         ),
                       ),
                     ],
@@ -170,6 +223,9 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
     );
   }
 
+  // =====================================================
+  // TEXT FIELD
+  // =====================================================
   Widget _field({
     required TextEditingController controller,
     required String hint,
@@ -181,9 +237,11 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
       controller: controller,
       keyboardType: keyboard,
       validator: validator,
+
       decoration: InputDecoration(
         hintText: hint,
         prefixIcon: Icon(icon),
+
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );

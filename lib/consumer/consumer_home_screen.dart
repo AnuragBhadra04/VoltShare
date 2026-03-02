@@ -1,28 +1,38 @@
 import 'package:flutter/material.dart';
+
 import '../core/constants/colors.dart';
+
 import 'find_charger/charger_list_screen.dart';
 import 'find_ev/ev_list_screen.dart';
 
-class TakerHomeScreen extends StatelessWidget {
-  const TakerHomeScreen({super.key});
+import '../map/map_screen.dart';
+
+class ConsumerHomeScreen extends StatelessWidget {
+  const ConsumerHomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
+
       appBar: AppBar(
-        title: const Text('Find Services'),
+        title: const Text('VoltShare'),
         backgroundColor: AppColors.primaryPurple,
         elevation: 0,
       ),
+
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 520),
+
           child: Padding(
             padding: const EdgeInsets.all(24),
+
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+
               children: [
+                /// FIND CHARGER
                 _actionCard(
                   context,
                   icon: Icons.ev_station,
@@ -41,6 +51,7 @@ class TakerHomeScreen extends StatelessWidget {
 
                 const SizedBox(height: 24),
 
+                /// FIND EV
                 _actionCard(
                   context,
                   icon: Icons.electric_car,
@@ -50,9 +61,24 @@ class TakerHomeScreen extends StatelessWidget {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => const ChargerListScreen(),
-                      ),
+                      MaterialPageRoute(builder: (_) => const EVListScreen()),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                /// OPEN MAP
+                _actionCard(
+                  context,
+                  icon: Icons.map,
+                  title: 'Open Map',
+                  subtitle: 'View nearby EV & Chargers',
+                  color: Colors.indigo,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const MapScreen()),
                     );
                   },
                 ),
@@ -74,13 +100,18 @@ class TakerHomeScreen extends StatelessWidget {
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
+
       onTap: onTap,
+
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 350),
+        duration: const Duration(milliseconds: 300),
+
         padding: const EdgeInsets.all(24),
+
         decoration: BoxDecoration(
           color: color,
           borderRadius: BorderRadius.circular(20),
+
           boxShadow: [
             BoxShadow(
               color: color.withOpacity(0.35),
@@ -89,12 +120,16 @@ class TakerHomeScreen extends StatelessWidget {
             ),
           ],
         ),
+
         child: Row(
           children: [
             Icon(icon, size: 44, color: Colors.white),
+
             const SizedBox(width: 20),
+
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+
               children: [
                 Text(
                   title,
@@ -104,7 +139,9 @@ class TakerHomeScreen extends StatelessWidget {
                     color: Colors.white,
                   ),
                 ),
+
                 const SizedBox(height: 6),
+
                 Text(
                   subtitle,
                   style: TextStyle(

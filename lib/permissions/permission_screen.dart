@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-
 import '../core/constants/colors.dart';
 import '../services/role_service.dart';
 import '../provider/provider_home_screen.dart';
-import '../taker/taker_home_screen.dart';
+import '../consumer/consumer_home_screen.dart';
 
 class PermissionScreen extends StatefulWidget {
   const PermissionScreen({super.key});
@@ -33,7 +32,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
       MaterialPageRoute(
         builder: (_) => role == 'provider'
             ? const ProviderHomeScreen()
-            : const TakerHomeScreen(),
+            : const ConsumerHomeScreen(),
       ),
     );
   }
