@@ -1,8 +1,11 @@
+import 'dart:math';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../models/ev_model.dart';
 import '../models/charger_model.dart';
 import '../models/booking_model.dart';
-import 'dart:math';
+import '../core/constants/api_endpoints.dart';
+import 'location_service.dart';
 
 class ApiService {
   static final SupabaseClient supabase = Supabase.instance.client;
@@ -14,31 +17,46 @@ class ApiService {
   static Future<List<EVModel>> getNearbyEVs(
     double userLat,
     double userLng, {
-    double radiusKm = 10,
+    double radiusKm = 2,
   }) async {
-    final response = await supabase
-        .from('evs')
-        .select()
-        .eq('is_available', true);
+    try {
+      final response = await supabase
+          .from(ApiEndpoints.evs)
+          .select()
+          .eq('is_available', true);
 
-    final List<Map<String, dynamic>> list = List<Map<String, dynamic>>.from(
-      response,
-    );
+      final list = List<Map<String, dynamic>>.from(response);
 
-    final nearby = list.where((ev) {
-      final lat = (ev['latitude'] ?? 0).toDouble();
-      final lng = (ev['longitude'] ?? 0).toDouble();
+      final nearby = list.where((ev) {
+        final lat = (ev['latitude'] ?? 0).toDouble();
+        final lng = (ev['longitude'] ?? 0).toDouble();
 
-      final distance = _calculateDistance(userLat, userLng, lat, lng);
+        final distance = _calculateDistance(userLat, userLng, lat, lng);
+        return distance <= radiusKm;
+      }).toList();
 
-      return distance <= radiusKm;
-    }).toList();
-
-    return nearby.map((e) => EVModel.fromJson(e)).toList();
+      return nearby.map((e) => EVModel.fromJson(e)).toList();
+    } catch (e) {
+      throw Exception("Failed to fetch nearby EVs: $e");
+    }
   }
 
   static Future<void> addEV(Map<String, dynamic> evData) async {
-    await supabase.from('evs').insert(evData);
+    try {
+      final user = supabase.auth.currentUser;
+
+      final location = await LocationService.getCurrentLocation();
+
+      await supabase.from(ApiEndpoints.evs).insert({
+        ...evData,
+        "provider_id": user?.id,
+        "latitude": location.latitude,
+        "longitude": location.longitude,
+        "created_at": DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      throw Exception("Failed to add EV: $e");
+    }
   }
 
   // =====================================================
@@ -48,75 +66,96 @@ class ApiService {
   static Future<List<ChargerModel>> getNearbyChargers(
     double userLat,
     double userLng, {
-    double radiusKm = 10,
+    double radiusKm = 2,
   }) async {
-    final response = await supabase
-        .from('chargers')
-        .select()
-        .eq('is_available', true);
+    try {
+      final response = await supabase
+          .from(ApiEndpoints.chargers)
+          .select()
+          .eq('is_available', true);
 
-    final List<Map<String, dynamic>> list = List<Map<String, dynamic>>.from(
-      response,
-    );
+      final list = List<Map<String, dynamic>>.from(response);
 
-    final nearby = list.where((charger) {
-      final lat = (charger['latitude'] ?? 0).toDouble();
-      final lng = (charger['longitude'] ?? 0).toDouble();
+      final nearby = list.where((charger) {
+        final lat = (charger['latitude'] ?? 0).toDouble();
+        final lng = (charger['longitude'] ?? 0).toDouble();
 
-      final distance = _calculateDistance(userLat, userLng, lat, lng);
+        final distance = _calculateDistance(userLat, userLng, lat, lng);
+        return distance <= radiusKm;
+      }).toList();
 
-      return distance <= radiusKm;
-    }).toList();
-
-    return nearby.map((e) => ChargerModel.fromJson(e)).toList();
+      return nearby.map((e) => ChargerModel.fromJson(e)).toList();
+    } catch (e) {
+      throw Exception("Failed to fetch nearby chargers: $e");
+    }
   }
 
   static Future<void> addCharger(Map<String, dynamic> chargerData) async {
-    await supabase.from('chargers').insert(chargerData);
+    try {
+      final user = supabase.auth.currentUser;
+
+      final location = await LocationService.getCurrentLocation();
+
+      await supabase.from(ApiEndpoints.chargers).insert({
+        ...chargerData,
+        "provider_id": user?.id,
+        "latitude": location.latitude,
+        "longitude": location.longitude,
+        "created_at": DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      throw Exception("Failed to add charger: $e");
+    }
   }
 
   // =====================================================
   // BOOKING APIs
   // =====================================================
 
-  /// CREATE booking and RETURN booking model
   static Future<BookingModel> createBooking(
     Map<String, dynamic> bookingData,
   ) async {
-    final response = await supabase
-        .from('bookings')
-        .insert(bookingData)
-        .select()
-        .single();
+    try {
+      final response = await supabase
+          .from(ApiEndpoints.bookings)
+          .insert(bookingData)
+          .select()
+          .single();
 
-    return BookingModel.fromJson(response);
+      return BookingModel.fromJson(response);
+    } catch (e) {
+      throw Exception("Failed to create booking: $e");
+    }
   }
 
-  /// UPDATE booking status
   static Future<void> updateBookingStatus(
     String bookingId,
     String status,
   ) async {
-    await supabase
-        .from('bookings')
-        .update({'status': status})
-        .eq('id', bookingId);
+    try {
+      await supabase
+          .from(ApiEndpoints.bookings)
+          .update({"status": status})
+          .eq("id", bookingId);
+    } catch (e) {
+      throw Exception("Failed to update booking: $e");
+    }
   }
 
   // =====================================================
-  // GET user bookings
+  // USER BOOKINGS
   // =====================================================
+
   static Future<List<Map<String, dynamic>>> getUserBookings(
     String userId,
   ) async {
     try {
       final response = await supabase
-          .from('bookings')
+          .from(ApiEndpoints.bookings)
           .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .eq("user_id", userId)
+          .order("created_at", ascending: false);
 
-      // ✅ FIX: proper casting
       return List<Map<String, dynamic>>.from(response);
     } catch (e) {
       throw Exception("Failed to fetch bookings: $e");
@@ -124,7 +163,7 @@ class ApiService {
   }
 
   // =====================================================
-  // DISTANCE CALCULATION
+  // DISTANCE CALCULATION (HAVERSINE)
   // =====================================================
 
   static double _calculateDistance(
@@ -133,7 +172,7 @@ class ApiService {
     double lat2,
     double lng2,
   ) {
-    const R = 6371;
+    const earthRadius = 6371;
 
     final dLat = _toRad(lat2 - lat1);
     final dLng = _toRad(lng2 - lng1);
@@ -144,7 +183,7 @@ class ApiService {
 
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
 
-    return R * c;
+    return earthRadius * c;
   }
 
   static double _toRad(double degree) {

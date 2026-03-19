@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 
-import '../services/location_service.dart';
-import '../services/api_service.dart';
-
-import '../models/ev_model.dart';
-import '../models/charger_model.dart';
-
-import '../core/constants/colors.dart';
-
+import 'map_service.dart';
 import 'map_marker_helper.dart';
+import 'navigation_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -19,17 +15,15 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  GoogleMapController? _mapController;
+  LatLng? userLocation;
 
-  LatLng? _currentPosition;
+  final MapController mapController = MapController();
 
-  Set<Marker> _markers = {};
+  final MapService mapService = MapService();
+  final NavigationService navigationService = NavigationService();
 
-  bool _loading = true;
-
-  List<EVModel> _evs = [];
-
-  List<ChargerModel> _chargers = [];
+  List<Marker> markers = [];
+  List<LatLng> routePoints = [];
 
   @override
   void initState() {
@@ -37,180 +31,155 @@ class _MapScreenState extends State<MapScreen> {
     _initializeMap();
   }
 
+  /// ================================
+  /// INITIALIZE MAP
+  /// ================================
   Future<void> _initializeMap() async {
-    try {
-      /// GET USER LOCATION
-      final location = await LocationService.getCurrentLocation();
+    LocationPermission permission = await Geolocator.requestPermission();
 
-      final userLat = location.latitude;
-      final userLng = location.longitude;
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return;
+    }
 
-      _currentPosition = LatLng(userLat, userLng);
+    Position position = await Geolocator.getCurrentPosition();
 
-      /// FETCH FROM SUPABASE
-      _evs = await ApiService.getNearbyEVs(userLat, userLng);
+    LatLng location = LatLng(position.latitude, position.longitude);
 
-      _chargers = await ApiService.getNearbyChargers(userLat, userLng);
+    setState(() {
+      userLocation = location;
 
-      /// CREATE MARKERS USING HELPER
+      markers.add(MapMarkerHelper.userMarker(location));
+    });
 
-      final userMarker = MapMarkerHelper.createUserMarker(
-        latitude: userLat,
-        longitude: userLng,
-      );
+    await loadMapData();
+  }
 
-      final evMarkers = MapMarkerHelper.createEVMarkers(
-        _evs,
-        onTap: _showEVDetails,
-      );
+  /// ================================
+  /// LOAD EV + CHARGER DATA
+  /// ================================
+  Future<void> loadMapData() async {
+    final evs = await mapService.fetchEVs();
+    final chargers = await mapService.fetchChargers();
 
-      final chargerMarkers = MapMarkerHelper.createChargerMarkers(
-        _chargers,
-        onTap: _showChargerDetails,
-      );
+    List<Marker> newMarkers = [];
 
-      /// MERGE ALL MARKERS
-      _markers = MapMarkerHelper.mergeMarkers(
-        userMarker: userMarker,
-        evMarkers: evMarkers,
-        chargerMarkers: chargerMarkers,
-      );
-    } catch (e) {
-      debugPrint("Map error: $e");
+    /// EV MARKERS
+    for (var ev in evs) {
+      final lat = ev['latitude'];
+      final lng = ev['longitude'];
+
+      if (lat != null && lng != null) {
+        LatLng position = LatLng(lat.toDouble(), lng.toDouble());
+
+        newMarkers.add(
+          Marker(
+            point: position,
+            width: 50,
+            height: 50,
+            child: GestureDetector(
+              onTap: () {
+                drawRoute(position);
+              },
+              child: const Icon(
+                Icons.electric_scooter,
+                color: Colors.green,
+                size: 35,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    /// CHARGER MARKERS
+    for (var charger in chargers) {
+      final lat = charger['latitude'];
+      final lng = charger['longitude'];
+
+      if (lat != null && lng != null) {
+        LatLng position = LatLng(lat.toDouble(), lng.toDouble());
+
+        newMarkers.add(
+          Marker(
+            point: position,
+            width: 50,
+            height: 50,
+            child: GestureDetector(
+              onTap: () {
+                drawRoute(position);
+              },
+              child: const Icon(
+                Icons.ev_station,
+                color: Colors.orange,
+                size: 35,
+              ),
+            ),
+          ),
+        );
+      }
     }
 
     setState(() {
-      _loading = false;
+      markers.addAll(newMarkers);
     });
   }
 
-  /// EV DETAILS BOTTOM SHEET
-  void _showEVDetails(EVModel ev) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                ev.name,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+  /// ================================
+  /// DRAW ROUTE
+  /// ================================
+  Future<void> drawRoute(LatLng destination) async {
+    if (userLocation == null) return;
 
-              const SizedBox(height: 10),
+    final route = await navigationService.getRoute(userLocation!, destination);
 
-              Text("₹${ev.pricePerHour}/hour"),
-
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-
-                    // TODO: booking flow
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryPurple,
-                  ),
-                  child: const Text(
-                    "Book EV",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    setState(() {
+      routePoints = route;
+    });
   }
 
-  /// CHARGER DETAILS BOTTOM SHEET
-  void _showChargerDetails(ChargerModel charger) {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "${charger.brand} ${charger.model}",
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 10),
-
-              Text("₹${charger.pricePerUnit}/unit"),
-
-              const SizedBox(height: 20),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-
-                    // TODO: charger booking flow
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondaryGreen,
-                  ),
-                  child: const Text(
-                    "Use Charger",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
+  /// ================================
+  /// UI
+  /// ================================
   @override
   Widget build(BuildContext context) {
-    if (_loading || _currentPosition == null) {
+    if (userLocation == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text("VoltShare Map")),
 
-      appBar: AppBar(
-        title: const Text("Nearby EV & Chargers"),
-        backgroundColor: AppColors.primaryPurple,
+      body: FlutterMap(
+        mapController: mapController,
+
+        options: MapOptions(initialCenter: userLocation!, initialZoom: 15),
+
+        children: [
+          /// OPEN STREET MAP TILES
+          TileLayer(
+            urlTemplate: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            userAgentPackageName: "com.voltshare.app",
+          ),
+
+          /// ROUTE POLYLINE
+          PolylineLayer(
+            polylines: [
+              Polyline(points: routePoints, strokeWidth: 5, color: Colors.blue),
+            ],
+          ),
+
+          /// MARKERS
+          MarkerLayer(markers: markers),
+        ],
       ),
 
-      body: GoogleMap(
-        initialCameraPosition: CameraPosition(
-          target: _currentPosition!,
-          zoom: 14,
-        ),
-
-        myLocationEnabled: true,
-
-        myLocationButtonEnabled: true,
-
-        zoomControlsEnabled: true,
-
-        markers: _markers,
-
-        onMapCreated: (controller) {
-          _mapController = controller;
+      /// CENTER USER LOCATION
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          mapController.move(userLocation!, 16);
         },
+        child: const Icon(Icons.my_location),
       ),
     );
   }

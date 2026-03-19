@@ -1,8 +1,8 @@
-import 'package:razorpay_flutter/razorpay_flutter.dart';
 import 'package:flutter/material.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 
 class RazorpayService {
-  static late Razorpay _razorpay;
+  static Razorpay? _razorpay;
 
   // ===============================
   // INITIALIZE RAZORPAY
@@ -12,13 +12,16 @@ class RazorpayService {
     required Function(PaymentFailureResponse) onError,
     required Function(ExternalWalletResponse) onWallet,
   }) {
+    // Prevent duplicate instances
+    dispose();
+
     _razorpay = Razorpay();
 
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, onSuccess);
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, onSuccess);
 
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, onError);
+    _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, onError);
 
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, onWallet);
+    _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, onWallet);
   }
 
   // ===============================
@@ -26,11 +29,16 @@ class RazorpayService {
   // ===============================
   static void openCheckout({
     required double amount,
-    required String name,
-    String description = "VoltShare Payment",
+    String name = "VoltShare",
+    String description = "EV / Charger Booking",
     String contact = "",
     String email = "",
   }) {
+    if (_razorpay == null) {
+      debugPrint("Razorpay not initialized");
+      return;
+    }
+
     var options = {
       'key': 'YOUR_RAZORPAY_KEY',
 
@@ -48,16 +56,17 @@ class RazorpayService {
     };
 
     try {
-      _razorpay.open(options);
+      _razorpay!.open(options);
     } catch (e) {
       debugPrint("Razorpay open error: $e");
     }
   }
 
   // ===============================
-  // CLEAR INSTANCE
+  // DISPOSE
   // ===============================
   static void dispose() {
-    _razorpay.clear();
+    _razorpay?.clear();
+    _razorpay = null;
   }
 }

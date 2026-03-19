@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../role/role_selection_screen.dart';
 import '../services/role_service.dart';
-import '../auth/auth_screen.dart'; // contains PhoneAuthScreen
+import '../auth/signin_screen.dart';
+
+import '../consumer/consumer_home_screen.dart';
+import '../provider/provider_home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,39 +17,35 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  // Screen animation
   late AnimationController _screenController;
   late Animation<double> _fade;
   late Animation<Offset> _slide;
 
-  // Hand wave animation
   late AnimationController _handController;
   late Animation<double> _handWave;
 
-  // 🎨 Colors
-  static const Color primaryBlue = Color(0xFF1E3A8A);
-  static const Color offWhite = Color(0xFFF8F9FA);
+  final supabase = Supabase.instance.client;
 
   @override
   void initState() {
     super.initState();
 
-    // Screen fade + slide (once)
+    /// Screen animation
     _screenController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1000),
+      duration: const Duration(milliseconds: 900),
     );
 
     _fade = CurvedAnimation(parent: _screenController, curve: Curves.easeIn);
 
-    _slide = Tween<Offset>(begin: const Offset(0, 0.12), end: Offset.zero)
+    _slide = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero)
         .animate(
           CurvedAnimation(parent: _screenController, curve: Curves.easeOut),
         );
 
     _screenController.forward();
 
-    // Hand wave animation (only hand loops)
+    /// Hand wave animation
     _handController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -55,6 +56,9 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     _handController.repeat(reverse: true);
+
+    /// Start routing after delay
+    Future.delayed(const Duration(seconds: 2), _goNext);
   }
 
   @override
@@ -64,20 +68,43 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  // ✅ FINAL CORRECT NAVIGATION
+  /// ROUTING LOGIC
   Future<void> _goNext() async {
+    final session = supabase.auth.currentSession;
     final role = await RoleService.getRole();
 
     if (!mounted) return;
 
-    if (role != null) {
-      // Returning user → Phone Auth
+    /// ROLE NOT CHOSEN
+    if (role == null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      );
+      return;
+    }
+
+    /// ROLE CHOSEN BUT USER NOT LOGGED IN
+    if (session == null) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
       );
+      return;
+    }
+
+    /// ROLE + LOGIN OK
+    if (role == "consumer") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ConsumerHomeScreen()),
+      );
+    } else if (role == "provider") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProviderHomeScreen()),
+      );
     } else {
-      // First time user → Role Selection
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
@@ -88,100 +115,99 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: offWhite,
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: FadeTransition(
-            opacity: _fade,
-            child: SlideTransition(
-              position: _slide,
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // 🌟 APP LOGO
-                    Container(
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: primaryBlue.withOpacity(0.25),
-                            blurRadius: 28,
-                            offset: const Offset(0, 14),
+      body: Container(
+        width: double.infinity,
+
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color(0xFF7A74D8),
+              Color(0xFF5E8DAA),
+              Color(0xFF5BC97C),
+              Color(0xFF2F4F4F),
+            ],
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+          ),
+        ),
+
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+
+            child: FadeTransition(
+              opacity: _fade,
+
+              child: SlideTransition(
+                position: _slide,
+
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      /// LOGO
+                      Container(
+                        height: 220,
+                        width: 220,
+
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+
+                        child: Center(
+                          child: Image.asset(
+                            "assets/images/app_logo.png",
+                            width: 160,
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 40),
+
+                      /// Greeting
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text(
+                            "Hi ",
+                            style: TextStyle(
+                              fontSize: 34,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black,
+                            ),
+                          ),
+
+                          AnimatedBuilder(
+                            animation: _handWave,
+                            builder: (context, child) {
+                              return Transform.rotate(
+                                angle: _handWave.value,
+                                child: const Text(
+                                  "👋",
+                                  style: TextStyle(fontSize: 34),
+                                ),
+                              );
+                            },
                           ),
                         ],
                       ),
-                      child: Image.asset(
-                        'assets/images/app_logo.png',
-                        height: 190,
-                      ),
-                    ),
 
-                    const SizedBox(height: 32),
+                      const SizedBox(height: 8),
 
-                    // 👋 Hand wave only
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          'Hi ',
-                          style: TextStyle(
-                            fontSize: 38,
-                            fontWeight: FontWeight.bold,
-                            color: primaryBlue,
-                          ),
-                        ),
-                        AnimatedBuilder(
-                          animation: _handWave,
-                          builder: (context, child) {
-                            return Transform.rotate(
-                              angle: _handWave.value,
-                              child: const Text(
-                                '👋',
-                                style: TextStyle(fontSize: 38),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    const Text(
-                      'Welcome to VoltShare',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 20, color: Colors.black54),
-                    ),
-
-                    const SizedBox(height: 40),
-
-                    // ▶ CONTINUE
-                    SizedBox(
-                      width: double.infinity,
-                      height: 54,
-                      child: ElevatedButton(
-                        onPressed: _goNext,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF4CAF50),
-                          elevation: 8,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.white,
-                          ),
+                      const Text(
+                        "Welcome to VoltShare",
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.black,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

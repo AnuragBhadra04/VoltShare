@@ -1,28 +1,30 @@
 import 'dart:math';
 
 class DistanceHelper {
-  static double calculateKm(
+  static double calculateDistance(
     double lat1,
-    double lng1,
+    double lon1,
     double lat2,
-    double lng2,
+    double lon2,
   ) {
-    const earthRadius = 6371;
+    const double earthRadius = 6371;
 
-    final dLat = _toRad(lat2 - lat1);
-
-    final dLng = _toRad(lng2 - lng1);
+    final dLat = _degToRad(lat2 - lat1);
+    final dLon = _degToRad(lon2 - lon1);
 
     final a =
         sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRad(lat1)) * cos(_toRad(lat2)) * sin(dLng / 2) * sin(dLng / 2);
+        cos(_degToRad(lat1)) *
+            cos(_degToRad(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
 
     final c = 2 * atan2(sqrt(a), sqrt(1 - a));
 
     return earthRadius * c;
   }
 
-  static double _toRad(double degree) {
-    return degree * pi / 180;
+  static double _degToRad(double deg) {
+    return deg * pi / 180;
   }
 }

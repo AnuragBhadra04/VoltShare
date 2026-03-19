@@ -2,51 +2,65 @@ import '../models/charger_model.dart';
 import '../services/api_service.dart';
 
 class ChargerRepository {
-  /// Fetch nearby chargers
-  static Future<List<ChargerModel>> getNearbyChargers({
+  /// ===============================
+  /// GET NEARBY CHARGERS
+  /// ===============================
+  Future<List<ChargerModel>> getNearbyChargers({
     required double latitude,
     required double longitude,
+    double radiusKm = 10,
   }) async {
     try {
-      return await ApiService.getNearbyChargers(latitude, longitude);
+      final chargers = await ApiService.getNearbyChargers(
+        latitude,
+        longitude,
+        radiusKm: radiusKm,
+      );
+
+      return chargers;
     } catch (e) {
-      throw Exception("ChargerRepository getNearbyChargers error: $e");
+      throw Exception("Failed to fetch chargers: $e");
     }
   }
 
-  /// Add charger
-  static Future<void> addCharger(ChargerModel charger) async {
+  /// ===============================
+  /// ADD CHARGER
+  /// ===============================
+  Future<void> addCharger(ChargerModel charger) async {
     try {
       await ApiService.addCharger(charger.toJson());
     } catch (e) {
-      throw Exception("ChargerRepository addCharger error: $e");
+      throw Exception("Failed to add charger: $e");
     }
   }
 
-  /// Get all chargers (provider dashboard)
-  static Future<List<ChargerModel>> getAllChargers() async {
+  /// ===============================
+  /// GET PROVIDER CHARGERS
+  /// ===============================
+  Future<List<ChargerModel>> getProviderChargers(String providerId) async {
     try {
       final response = await ApiService.supabase
           .from('chargers')
           .select()
+          .eq('provider_id', providerId)
           .order('created_at', ascending: false);
 
-      final List<Map<String, dynamic>> list = List<Map<String, dynamic>>.from(
-        response,
-      );
+      final list = List<Map<String, dynamic>>.from(response);
 
       return list.map((e) => ChargerModel.fromJson(e)).toList();
     } catch (e) {
-      throw Exception("ChargerRepository getAllChargers error: $e");
+      throw Exception("Failed to fetch provider chargers: $e");
     }
   }
 
-  /// Delete charger
-  static Future<void> deleteCharger(String chargerId) async {
+  /// ===============================
+  /// DELETE CHARGER
+  /// ===============================
+  Future<void> deleteCharger(String id) async {
     try {
-      await ApiService.supabase.from('chargers').delete().eq('id', chargerId);
+      await ApiService.supabase.from('chargers').delete().eq('id', id);
     } catch (e) {
-      throw Exception("ChargerRepository deleteCharger error: $e");
+      throw Exception("Failed to delete charger: $e");
     }
   }
 }

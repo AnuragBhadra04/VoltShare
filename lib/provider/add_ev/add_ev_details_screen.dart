@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-
 import '../../core/constants/colors.dart';
+import '../../services/api_service.dart';
 import '../../services/location_service.dart';
-import '../../repository/ev_repository.dart';
-import '../../models/ev_model.dart';
 
 class AddEVDetailsScreen extends StatefulWidget {
   const AddEVDetailsScreen({super.key});
@@ -14,63 +11,49 @@ class AddEVDetailsScreen extends StatefulWidget {
 }
 
 class _AddEVDetailsScreenState extends State<AddEVDetailsScreen> {
-  final _brandController = TextEditingController();
-  final _modelController = TextEditingController();
-  final _priceController = TextEditingController();
-  final _rangeController = TextEditingController();
+  final nameController = TextEditingController();
+  final priceController = TextEditingController();
 
-  String? _docName;
+  bool loading = false;
 
-  bool _loading = false;
-
-  // ===============================
-  // PICK DOCUMENT (Optional upload)
-  // ===============================
-  Future<void> _pickDoc() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'jpg', 'png'],
-    );
-
-    if (result != null) {
-      setState(() {
-        _docName = result.files.first.name;
-      });
-    }
-  }
-
-  // ===============================
-  // SAVE EV TO SUPABASE
-  // ===============================
-  Future<void> _save() async {
+  Future<void> _addEV() async {
     try {
-      if (_brandController.text.isEmpty ||
-          _modelController.text.isEmpty ||
-          _priceController.text.isEmpty ||
-          _rangeController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
+      setState(() => loading = true);
+
+      /// Check RC uploaded
+      final user = await ApiService.supabase
+          .from("users")
+          .select()
+          .eq("id", ApiService.supabase.auth.currentUser!.id)
+          .single();
+
+      if (user["rc_url"] == null) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Please upload RC in profile before adding EV"),
+          ),
+        );
+
+        setState(() => loading = false);
         return;
       }
 
-      setState(() => _loading = true);
+      /// GET CURRENT LOCATION
+      final position = await LocationService.getCurrentLocation();
 
-      /// GET LOCATION
-      final location = await LocationService.getCurrentLocation();
+      await ApiService.addEV({
+        "name": nameController.text.trim(),
 
-      /// CREATE EV MODEL
-      final ev = EVModel(
-        id: "", // Supabase generates ID
-        name: "${_brandController.text.trim()} ${_modelController.text.trim()}",
-        latitude: location.latitude,
-        longitude: location.longitude,
-        pricePerHour: double.parse(_priceController.text.trim()),
-        isAvailable: true,
-      );
+        "price_per_hour": double.parse(priceController.text),
 
-      /// SAVE TO SUPABASE
-      await EVRepository.addEV(ev);
+        "latitude": position.latitude,
+
+        "longitude": position.longitude,
+
+        "is_available": true,
+      });
 
       if (!mounted) return;
 
@@ -80,19 +63,16 @@ class _AddEVDetailsScreenState extends State<AddEVDetailsScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text("EV added successfully")));
     } catch (e) {
-      debugPrint("Add EV error: $e");
+      debugPrint("Add EV error $e");
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Failed to add EV")));
     }
 
-    setState(() => _loading = false);
+    setState(() => loading = false);
   }
 
-  // ===============================
-  // UI
-  // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -100,7 +80,7 @@ class _AddEVDetailsScreenState extends State<AddEVDetailsScreen> {
 
       appBar: AppBar(
         title: const Text("Add EV"),
-        backgroundColor: AppColors.secondaryGreen,
+        backgroundColor: AppColors.primaryPurple,
       ),
 
       body: Padding(
@@ -108,57 +88,47 @@ class _AddEVDetailsScreenState extends State<AddEVDetailsScreen> {
 
         child: Column(
           children: [
-            _field(controller: _brandController, hint: "EV Brand"),
-
-            const SizedBox(height: 16),
-
-            _field(controller: _modelController, hint: "EV Model"),
-
-            const SizedBox(height: 16),
-
-            _field(
-              controller: _rangeController,
-              hint: "Range (km)",
-              keyboard: TextInputType.number,
+            /// EV NAME
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: "EV Name",
+                border: OutlineInputBorder(),
+              ),
             ),
 
             const SizedBox(height: 16),
 
-            _field(
-              controller: _priceController,
-              hint: "Price per hour (₹)",
-              keyboard: TextInputType.number,
+            /// PRICE
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Price Per Hour",
+                border: OutlineInputBorder(),
+              ),
             ),
 
-            const SizedBox(height: 20),
-
-            ListTile(
-              leading: const Icon(Icons.upload_file),
-              title: Text(_docName ?? "Upload RC / Insurance"),
-              onTap: _pickDoc,
-            ),
-
-            const SizedBox(height: 32),
+            const SizedBox(height: 30),
 
             SizedBox(
               width: double.infinity,
               height: 55,
 
               child: ElevatedButton(
-                onPressed: _loading ? null : _save,
+                onPressed: loading ? null : _addEV,
 
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondaryGreen,
-
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
 
-                child: _loading
+                child: loading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                        "Save EV",
+                        "Add EV",
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
               ),
@@ -167,31 +137,5 @@ class _AddEVDetailsScreenState extends State<AddEVDetailsScreen> {
         ),
       ),
     );
-  }
-
-  Widget _field({
-    required TextEditingController controller,
-    required String hint,
-    TextInputType keyboard = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboard,
-
-      decoration: InputDecoration(
-        hintText: hint,
-
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _brandController.dispose();
-    _modelController.dispose();
-    _priceController.dispose();
-    _rangeController.dispose();
-    super.dispose();
   }
 }

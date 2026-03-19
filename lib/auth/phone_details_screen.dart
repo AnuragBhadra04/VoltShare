@@ -1,94 +1,34 @@
 import 'package:flutter/material.dart';
-import '../core/constants/colors.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_signin_button/flutter_signin_button.dart';
 import '../permissions/permission_screen.dart';
-import '../services/user_service.dart';
-import '../models/user_model.dart';
 
-class PhoneDetailsScreen extends StatefulWidget {
-  const PhoneDetailsScreen({super.key});
+class PhoneAuthScreen extends StatefulWidget {
+  const PhoneAuthScreen({super.key});
 
   @override
-  State<PhoneDetailsScreen> createState() => _PhoneDetailsScreenState();
+  State<PhoneAuthScreen> createState() => _PhoneAuthScreenState();
 }
 
-class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
-    with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-
-  final _nameController = TextEditingController();
-  final _ageController = TextEditingController();
-  final _phoneController = TextEditingController();
-
-  late AnimationController _controller;
-  late Animation<double> _fade;
-  late Animation<Offset> _slide;
-
+class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   bool _loading = false;
+  bool rememberMe = true;
+  bool hidePassword = true;
+
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
 
   // =====================================================
-  // INIT ANIMATION
+  // GOOGLE LOGIN
   // =====================================================
-  @override
-  void initState() {
-    super.initState();
-
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-
-    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeIn);
-
-    _slide = Tween<Offset>(
-      begin: const Offset(0, 0.08),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
-
-    _controller.forward();
-  }
-
-  // =====================================================
-  // DISPOSE
-  // =====================================================
-  @override
-  void dispose() {
-    _controller.dispose();
-    _nameController.dispose();
-    _ageController.dispose();
-    _phoneController.dispose();
-    super.dispose();
-  }
-
-  // =====================================================
-  // DEV MODE LOGIN (BYPASS OTP)
-  // =====================================================
-  Future<void> _continue() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _loading = true);
-
+  Future<void> _signInWithGoogle() async {
     try {
-      final name = _nameController.text.trim();
-      final phone = _phoneController.text.trim();
-      final age = _ageController.text.trim();
+      setState(() => _loading = true);
 
-      // Create fake user locally
-      final user = UserModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        name: name,
-        phone: phone,
-        email: null,
-        photoUrl: null,
-        role: null,
-        createdAt: DateTime.now(),
-      );
-
-      // Save locally
-      await UserService.saveUser(user);
+      await Supabase.instance.client.auth.signInWithOAuth(OAuthProvider.google);
 
       if (!mounted) return;
 
-      // Go to Permission Screen directly
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const PermissionScreen()),
@@ -96,7 +36,7 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
     } catch (e) {
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text("Error: $e")));
+      ).showSnackBar(SnackBar(content: Text("Google login failed: $e")));
     }
 
     setState(() => _loading = false);
@@ -108,141 +48,210 @@ class _PhoneDetailsScreenState extends State<PhoneDetailsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-
-      appBar: AppBar(
-        backgroundColor: AppColors.background,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.titleText),
-      ),
-
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-
-          child: FadeTransition(
-            opacity: _fade,
-
-            child: SlideTransition(
-              position: _slide,
-
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-
-                child: Form(
-                  key: _formKey,
-
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-
-                    children: [
-                      const Text(
-                        'Create Account',
-                        style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.titleText,
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      // NAME
-                      _field(
-                        controller: _nameController,
-                        hint: 'Full Name',
-                        icon: Icons.person,
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Enter your name' : null,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // AGE
-                      _field(
-                        controller: _ageController,
-                        hint: 'Age',
-                        icon: Icons.cake,
-                        keyboard: TextInputType.number,
-                        validator: (v) =>
-                            v == null || v.isEmpty ? 'Enter age' : null,
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // PHONE
-                      _field(
-                        controller: _phoneController,
-                        hint: 'Phone Number',
-                        icon: Icons.phone,
-                        keyboard: TextInputType.phone,
-                        validator: (v) => v == null || v.length != 10
-                            ? 'Enter valid phone number'
-                            : null,
-                      ),
-
-                      const SizedBox(height: 28),
-
-                      // BUTTON
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-
-                        child: ElevatedButton(
-                          onPressed: _loading ? null : _continue,
-
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primaryPurple,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
+      backgroundColor: const Color(0xffF4F5F7),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 420),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // LOGO
+                  Center(
+                    child: Column(
+                      children: [
+                        Container(
+                          height: 70,
+                          width: 70,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xff5B6CF0), Color(0xff4ED0C4)],
                             ),
+                            shape: BoxShape.circle,
                           ),
-
-                          child: _loading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white,
-                                )
-                              : const Text(
-                                  'Continue',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.white,
-                                  ),
-                                ),
+                          child: const Icon(
+                            Icons.bolt,
+                            color: Colors.white,
+                            size: 36,
+                          ),
                         ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "VoltShare",
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  const Text(
+                    "Sign in",
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // EMAIL FIELD
+                  TextField(
+                    controller: emailController,
+                    decoration: InputDecoration(
+                      hintText: "abc@email.com",
+                      prefixIcon: const Icon(Icons.email_outlined),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // PASSWORD FIELD
+                  TextField(
+                    controller: passwordController,
+                    obscureText: hidePassword,
+                    decoration: InputDecoration(
+                      hintText: "Your password",
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          hidePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            hidePassword = !hidePassword;
+                          });
+                        },
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // REMEMBER ME + FORGOT
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Switch(
+                            value: rememberMe,
+                            onChanged: (v) {
+                              setState(() => rememberMe = v);
+                            },
+                          ),
+                          const Text("Remember Me"),
+                        ],
+                      ),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text("Forgot Password?"),
                       ),
                     ],
                   ),
-                ),
+
+                  const SizedBox(height: 20),
+
+                  // SIGN IN BUTTON
+                  Container(
+                    width: double.infinity,
+                    height: 55,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xff5B6CF0), Color(0xff6C63FF)],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        shadowColor: Colors.transparent,
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            "SIGN IN",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          SizedBox(width: 10),
+                          Icon(Icons.arrow_forward),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  const Center(
+                    child: Text("OR", style: TextStyle(color: Colors.grey)),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // GOOGLE SIGN IN BUTTON
+                  SignInButton(
+                    Buttons.Google,
+                    text: "Sign in with Google",
+                    onPressed: _loading ? null : _signInWithGoogle,
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  // FACEBOOK BUTTON
+                  SignInButton(
+                    Buttons.Facebook,
+                    text: "Login with Facebook",
+                    onPressed: () {},
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // SIGN UP
+                  Center(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text("Don’t have an account? "),
+                        GestureDetector(
+                          onTap: () {},
+                          child: const Text(
+                            "Sign up",
+                            style: TextStyle(
+                              color: Color(0xff5B6CF0),
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  // =====================================================
-  // TEXT FIELD
-  // =====================================================
-  Widget _field({
-    required TextEditingController controller,
-    required String hint,
-    required IconData icon,
-    TextInputType keyboard = TextInputType.text,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboard,
-      validator: validator,
-
-      decoration: InputDecoration(
-        hintText: hint,
-        prefixIcon: Icon(icon),
-
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }

@@ -1,43 +1,46 @@
 import 'package:flutter/material.dart';
-import '../profile/profile_screen.dart';
+
 import '../splash/splash_screen.dart';
 import '../role/role_selection_screen.dart';
-import '../auth/auth_screen.dart';
+import '../auth/signin_screen.dart';
 import '../permissions/permission_screen.dart';
+
 import '../consumer/consumer_home_screen.dart';
 import '../provider/provider_home_screen.dart';
+
+import '../profile/profile_screen.dart';
 import '../map/map_screen.dart';
 
 class AppRoutes {
+  /// Core routes
   static const splash = "/";
-  static const role = "/role";
   static const auth = "/auth";
+  static const role = "/role";
   static const permission = "/permission";
 
-  static const profile = "/profile";
-
-  static const takerHome = "/takerHome";
+  /// Main app routes
+  static const consumerHome = "/consumerHome";
   static const providerHome = "/providerHome";
 
+  /// Features
   static const map = "/map";
+  static const profile = "/profile";
 
-  static const rating = "/rating"; // ✅ THIS WAS MISSING
-
-  static Map<String, WidgetBuilder> routes = {
+  /// Route Map
+  static final Map<String, WidgetBuilder> routes = {
     splash: (context) => const SplashScreen(),
 
-    role: (context) => const RoleSelectionScreen(),
-
+    /// Auth flow
     auth: (context) => const PhoneAuthScreen(),
-
+    role: (context) => const RoleSelectionScreen(),
     permission: (context) => const PermissionScreen(),
 
-    profile: (context) => const ProfileScreen(),
-
-    takerHome: (context) => const ConsumerHomeScreen(),
-
+    /// Main screens
+    consumerHome: (context) => const ConsumerHomeScreen(),
     providerHome: (context) => const ProviderHomeScreen(),
 
+    /// Utilities
+    profile: (context) => const ProfileScreen(),
     map: (context) => const MapScreen(),
   };
 }

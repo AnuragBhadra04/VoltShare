@@ -1,174 +1,216 @@
 import 'package:flutter/material.dart';
 
 import '../core/constants/colors.dart';
+import '../services/auth_service.dart';
+import '../models/user_model.dart';
 
-import 'add_charger/add_charger_details_screen.dart';
 import 'add_ev/add_ev_details_screen.dart';
-
-import '../map/map_screen.dart';
+import 'add_charger/add_charger_details_screen.dart';
 import 'provider_bookings_screen.dart';
 
-class ProviderHomeScreen extends StatelessWidget {
+import '../payment/payment_history_screen.dart';
+import '../profile/profile_screen.dart';
+
+class ProviderHomeScreen extends StatefulWidget {
   const ProviderHomeScreen({super.key});
+
+  @override
+  State<ProviderHomeScreen> createState() => _ProviderHomeScreenState();
+}
+
+class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
+  UserModel? user;
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    try {
+      final profile = await AuthService.getCurrentUserProfile();
+
+      if (!mounted) return;
+
+      setState(() {
+        user = profile;
+        loading = false;
+      });
+    } catch (e) {
+      debugPrint("User load error: $e");
+      setState(() => loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
 
-      appBar: AppBar(
-        backgroundColor: AppColors.secondaryGreen,
-        elevation: 0,
-        title: const Text(
-          'Provider Dashboard',
-          style: TextStyle(fontWeight: FontWeight.w600),
-        ),
-
-        actions: [
-          /// VIEW BOOKINGS BUTTON
-          IconButton(
-            icon: const Icon(Icons.book_online),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const ProviderBookingsScreen(),
-                ),
-              );
-            },
-          ),
-
-          /// VIEW MAP BUTTON
-          IconButton(
-            icon: const Icon(Icons.map),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const MapScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
-
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
               children: [
                 /// HEADER
-                const Text(
-                  'Manage your services',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.titleText,
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                const Text(
-                  'Add chargers or EVs and earn from nearby users',
-                  style: TextStyle(fontSize: 15, color: AppColors.subtitleText),
-                ),
-
-                const SizedBox(height: 32),
-
-                /// ADD CHARGER
-                _actionCard(
-                  context,
-                  icon: Icons.ev_station,
-                  title: 'Add Charger',
-                  subtitle: 'List your charging station',
-                  color: AppColors.primaryPurple,
-
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddChargerDetailsScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 20),
-
-                /// ADD EV
-                _actionCard(
-                  context,
-                  icon: Icons.electric_car,
-                  title: 'Add EV',
-                  subtitle: 'Rent out your electric vehicle',
-                  color: AppColors.secondaryGreen,
-
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AddEVDetailsScreen(),
-                      ),
-                    );
-                  },
-                ),
-
-                const SizedBox(height: 32),
-
-                /// TOTAL EARNINGS (READY FOR SUPABASE)
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(24, 60, 24, 26),
 
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF6C63FF), Color(0xFF5E8DAA)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
 
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(28),
+                      bottomRight: Radius.circular(28),
+                    ),
                   ),
 
                   child: Row(
-                    children: const [
-                      Icon(
-                        Icons.account_balance_wallet,
-                        size: 32,
-                        color: AppColors.secondaryGreen,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      /// TITLE
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "VoltShare Provider",
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+
+                          const SizedBox(height: 6),
+
+                          Text(
+                            "Hi, ${user?.name ?? "Provider"} 👋",
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 15,
+                            ),
+                          ),
+                        ],
                       ),
 
-                      SizedBox(width: 16),
+                      /// PROFILE
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfileScreen(),
+                            ),
+                          );
+                        },
 
-                      Text(
-                        'Total Earnings: ₹0',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+                        child: CircleAvatar(
+                          radius: 22,
+                          backgroundImage: user?.photoUrl != null
+                              ? NetworkImage(user!.photoUrl!)
+                              : null,
+                          child: user?.photoUrl == null
+                              ? const Icon(Icons.person)
+                              : null,
                         ),
                       ),
                     ],
                   ),
                 ),
+
+                /// BODY
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+
+                    child: Column(
+                      children: [
+                        /// ADD EV
+                        _actionCard(
+                          icon: Icons.electric_car,
+                          title: "Add EV",
+                          subtitle: "List your EV for rental",
+                          color: AppColors.secondaryGreen,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AddEVDetailsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        /// ADD CHARGER
+                        _actionCard(
+                          icon: Icons.ev_station,
+                          title: "Add Charger",
+                          subtitle: "Share your charging station",
+                          color: AppColors.primaryPurple,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const AddChargerDetailsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        /// BOOKINGS
+                        _actionCard(
+                          icon: Icons.list_alt,
+                          title: "Booking Requests",
+                          subtitle: "Manage customer bookings",
+                          color: Colors.indigo,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProviderBookingsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        /// PAYMENT HISTORY
+                        _actionCard(
+                          icon: Icons.payments,
+                          title: "Payment History",
+                          subtitle: "View your earnings",
+                          color: Colors.orange,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const PaymentHistoryScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
-          ),
-        ),
-      ),
     );
   }
 
-  /// REUSABLE CARD
-  Widget _actionCard(
-    BuildContext context, {
+  /// ACTION CARD
+  Widget _actionCard({
     required IconData icon,
     required String title,
     required String subtitle,
@@ -177,10 +219,10 @@ class ProviderHomeScreen extends StatelessWidget {
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-
       onTap: onTap,
 
       child: Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(22),
 
         decoration: BoxDecoration(
@@ -189,23 +231,31 @@ class ProviderHomeScreen extends StatelessWidget {
 
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.35),
-              blurRadius: 20,
-              offset: const Offset(0, 12),
+              color: color.withOpacity(.35),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
 
         child: Row(
           children: [
-            Icon(icon, size: 42, color: Colors.white),
+            /// ICON
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 28, color: Colors.white),
+            ),
 
-            const SizedBox(width: 20),
+            const SizedBox(width: 18),
 
+            /// TEXT
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-
                 children: [
                   Text(
                     title,
@@ -220,16 +270,13 @@ class ProviderHomeScreen extends StatelessWidget {
 
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.9),
-                    ),
+                    style: TextStyle(color: Colors.white.withOpacity(.9)),
                   ),
                 ],
               ),
             ),
 
-            const Icon(Icons.arrow_forward_ios, size: 18, color: Colors.white),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
           ],
         ),
       ),

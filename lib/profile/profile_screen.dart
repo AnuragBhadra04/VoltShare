@@ -1,13 +1,8 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../core/constants/colors.dart';
 import '../services/auth_service.dart';
 import '../services/role_service.dart';
-import '../role/role_selection_screen.dart';
+import '../models/user_model.dart';
+import '../auth/signin_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,126 +11,26 @@ class ProfileScreen extends StatefulWidget {
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
-class _ProfileScreenState extends State<ProfileScreen>
-    with SingleTickerProviderStateMixin {
-  final supabase = Supabase.instance.client;
-
-  Map<String, dynamic>? userData;
-
+class _ProfileScreenState extends State<ProfileScreen> {
+  UserModel? user;
+  String? role;
   bool loading = true;
-  bool saving = false;
-
-  File? imageFile;
-
-  late AnimationController controller;
-  late Animation<double> fade;
-  late Animation<Offset> slide;
-
-  final nameController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-
-    controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-
-    fade = CurvedAnimation(parent: controller, curve: Curves.easeIn);
-
-    slide = Tween<Offset>(
-      begin: const Offset(0, 0.15),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: controller, curve: Curves.easeOut));
-
-    loadProfile();
-
-    controller.forward();
+    loadUser();
   }
 
-  Future<void> loadProfile() async {
-    try {
-      final user = supabase.auth.currentUser;
-
-      if (user == null) return;
-
-      final data = await supabase
-          .from('users')
-          .select()
-          .eq('id', user.id)
-          .single();
-
-      nameController.text = data['name'] ?? "";
-
-      setState(() {
-        userData = data;
-        loading = false;
-      });
-    } catch (e) {
-      debugPrint("Profile load error: $e");
-      setState(() => loading = false);
-    }
-  }
-
-  Future<void> pickImage() async {
-    final picker = ImagePicker();
-
-    final picked = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 60,
-    );
-
-    if (picked == null) return;
+  Future<void> loadUser() async {
+    final profile = await AuthService.getCurrentUserProfile();
+    final r = await RoleService.getRole();
 
     setState(() {
-      imageFile = File(picked.path);
+      user = profile;
+      role = r;
+      loading = false;
     });
-  }
-
-  Future<String?> uploadImage() async {
-    if (imageFile == null) return userData?['photo_url'];
-
-    final user = supabase.auth.currentUser;
-
-    final fileName = "profile_${user!.id}.jpg";
-
-    await supabase.storage
-        .from('profiles')
-        .upload(
-          fileName,
-          imageFile!,
-          fileOptions: const FileOptions(upsert: true),
-        );
-
-    final url = supabase.storage.from('profiles').getPublicUrl(fileName);
-
-    return url;
-  }
-
-  Future<void> saveProfile() async {
-    try {
-      setState(() => saving = true);
-
-      final user = supabase.auth.currentUser;
-
-      final photoUrl = await uploadImage();
-
-      await supabase
-          .from('users')
-          .update({'name': nameController.text.trim(), 'photo_url': photoUrl})
-          .eq('id', user!.id);
-
-      await loadProfile();
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Profile updated")));
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-
-    setState(() => saving = false);
   }
 
   Future<void> logout() async {
@@ -146,41 +41,8 @@ class _ProfileScreenState extends State<ProfileScreen>
 
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      MaterialPageRoute(builder: (_) => const PhoneAuthScreen()),
       (route) => false,
-    );
-  }
-
-  Widget infoTile(icon, title, value) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(blurRadius: 12, color: Colors.black.withOpacity(.05)),
-        ],
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.primaryPurple),
-          const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(color: Colors.grey)),
-              Text(
-                value ?? "-",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
     );
   }
 
@@ -190,94 +52,91 @@ class _ProfileScreenState extends State<ProfileScreen>
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    final name = userData?['name'] ?? "User";
-    final phone = userData?['phone'];
-    final email = userData?['email'];
-    final role = userData?['role'] ?? "consumer";
-    final photo = userData?['photo_url'];
+    final isProvider = role == "provider";
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      appBar: AppBar(title: const Text("Profile")),
 
-      appBar: AppBar(
-        title: Text("Hello, $name 👋"),
-        backgroundColor: AppColors.primaryPurple,
-        actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: logout),
-        ],
-      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
 
-      body: FadeTransition(
-        opacity: fade,
-        child: SlideTransition(
-          position: slide,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              Center(
-                child: GestureDetector(
-                  onTap: pickImage,
-                  child: CircleAvatar(
-                    radius: 55,
-                    backgroundColor: AppColors.primaryPurple,
-                    backgroundImage: imageFile != null
-                        ? FileImage(imageFile!)
-                        : photo != null
-                        ? NetworkImage(photo)
-                        : null,
-                    child: photo == null && imageFile == null
-                        ? Text(
-                            name[0],
-                            style: const TextStyle(
-                              fontSize: 40,
-                              color: Colors.white,
-                            ),
-                          )
-                        : null,
-                  ),
+        child: Column(
+          children: [
+            /// PROFILE IMAGE
+            CircleAvatar(
+              radius: 50,
+              backgroundImage: user?.photoUrl != null
+                  ? NetworkImage(user!.photoUrl!)
+                  : null,
+              child: user?.photoUrl == null
+                  ? const Icon(Icons.person, size: 40)
+                  : null,
+            ),
+
+            const SizedBox(height: 20),
+
+            /// NAME
+            Text(
+              user?.name ?? "User",
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            ),
+
+            const SizedBox(height: 6),
+
+            /// EMAIL
+            Text(user?.email ?? "", style: const TextStyle(color: Colors.grey)),
+
+            const SizedBox(height: 30),
+
+            /// ROLE BADGE
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: BoxDecoration(
+                color: isProvider ? Colors.orange : Colors.green,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                isProvider ? "EV Provider" : "Service User",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
+            ),
 
-              const SizedBox(height: 30),
+            const SizedBox(height: 40),
 
-              TextField(
-                controller: nameController,
-                decoration: InputDecoration(
-                  labelText: "Name",
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
+            /// PROVIDER EXTRA INFO
+            if (isProvider)
+              ListTile(
+                leading: const Icon(Icons.ev_station),
+                title: const Text("Provider Dashboard"),
+                subtitle: const Text("Manage your EV / Chargers"),
               ),
 
-              const SizedBox(height: 16),
-
-              infoTile(Icons.phone, "Phone", phone),
-
-              infoTile(Icons.email, "Email", email),
-
-              infoTile(Icons.person, "Role", role),
-
-              const SizedBox(height: 30),
-
-              ElevatedButton(
-                onPressed: saving ? null : saveProfile,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryPurple,
-                  minimumSize: const Size(double.infinity, 55),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                child: saving
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : const Text(
-                        "Save Profile",
-                        style: TextStyle(color: Colors.white),
-                      ),
+            /// CONSUMER INFO
+            if (!isProvider)
+              ListTile(
+                leading: const Icon(Icons.history),
+                title: const Text("Ride History"),
+                subtitle: const Text("View previous bookings"),
               ),
-            ],
-          ),
+
+            const Spacer(),
+
+            /// LOGOUT
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+
+              child: ElevatedButton(
+                onPressed: logout,
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+
+                child: const Text("Logout", style: TextStyle(fontSize: 16)),
+              ),
+            ),
+          ],
         ),
       ),
     );

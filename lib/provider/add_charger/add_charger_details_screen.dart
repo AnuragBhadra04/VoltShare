@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-
 import '../../core/constants/colors.dart';
+import '../../services/api_service.dart';
 import '../../services/location_service.dart';
-import '../../repository/charger_repository.dart';
-import '../../models/charger_model.dart';
 
 class AddChargerDetailsScreen extends StatefulWidget {
   const AddChargerDetailsScreen({super.key});
@@ -14,44 +12,31 @@ class AddChargerDetailsScreen extends StatefulWidget {
 }
 
 class _AddChargerDetailsScreenState extends State<AddChargerDetailsScreen> {
-  final _brandController = TextEditingController();
-  final _modelController = TextEditingController();
-  final _priceController = TextEditingController();
+  final brandController = TextEditingController();
+  final modelController = TextEditingController();
+  final priceController = TextEditingController();
 
-  bool _loading = false;
+  bool loading = false;
 
-  // ===============================
-  // SAVE CHARGER TO SUPABASE
-  // ===============================
-  Future<void> _save() async {
+  Future<void> _addCharger() async {
     try {
-      if (_brandController.text.isEmpty ||
-          _modelController.text.isEmpty ||
-          _priceController.text.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
-        return;
-      }
+      setState(() => loading = true);
 
-      setState(() => _loading = true);
+      final position = await LocationService.getCurrentLocation();
 
-      /// GET USER LOCATION
-      final location = await LocationService.getCurrentLocation();
+      await ApiService.addCharger({
+        "brand": brandController.text.trim(),
 
-      /// CREATE CHARGER MODEL
-      final charger = ChargerModel(
-        id: "", // Supabase will generate
-        brand: _brandController.text.trim(),
-        model: _modelController.text.trim(),
-        latitude: location.latitude,
-        longitude: location.longitude,
-        isAvailable: true,
-        pricePerUnit: double.parse(_priceController.text.trim()),
-      );
+        "model": modelController.text.trim(),
 
-      /// SAVE TO SUPABASE
-      await ChargerRepository.addCharger(charger);
+        "price_per_unit": double.parse(priceController.text),
+
+        "latitude": position.latitude,
+
+        "longitude": position.longitude,
+
+        "is_available": true,
+      });
 
       if (!mounted) return;
 
@@ -61,19 +46,16 @@ class _AddChargerDetailsScreenState extends State<AddChargerDetailsScreen> {
         const SnackBar(content: Text("Charger added successfully")),
       );
     } catch (e) {
-      debugPrint("Add charger error: $e");
+      debugPrint("Add Charger error $e");
 
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Failed to add charger")));
     }
 
-    setState(() => _loading = false);
+    setState(() => loading = false);
   }
 
-  // ===============================
-  // UI
-  // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -81,7 +63,7 @@ class _AddChargerDetailsScreenState extends State<AddChargerDetailsScreen> {
 
       appBar: AppBar(
         title: const Text("Add Charger"),
-        backgroundColor: AppColors.secondaryGreen,
+        backgroundColor: AppColors.primaryPurple,
       ),
 
       body: Padding(
@@ -89,44 +71,55 @@ class _AddChargerDetailsScreenState extends State<AddChargerDetailsScreen> {
 
         child: Column(
           children: [
-            _field(
-              controller: _brandController,
-              hint: "Brand (Tata, ABB, etc)",
+            TextField(
+              controller: brandController,
+              decoration: const InputDecoration(
+                labelText: "Brand",
+                border: OutlineInputBorder(),
+              ),
             ),
 
             const SizedBox(height: 16),
 
-            _field(controller: _modelController, hint: "Model"),
+            TextField(
+              controller: modelController,
+              decoration: const InputDecoration(
+                labelText: "Model",
+                border: OutlineInputBorder(),
+              ),
+            ),
 
             const SizedBox(height: 16),
 
-            _field(
-              controller: _priceController,
-              hint: "Price per unit (₹)",
-              keyboard: TextInputType.number,
+            TextField(
+              controller: priceController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: "Price Per Unit",
+                border: OutlineInputBorder(),
+              ),
             ),
 
-            const SizedBox(height: 32),
+            const SizedBox(height: 30),
 
             SizedBox(
               width: double.infinity,
               height: 55,
 
               child: ElevatedButton(
-                onPressed: _loading ? null : _save,
+                onPressed: loading ? null : _addCharger,
 
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryPurple,
-
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(16),
                   ),
                 ),
 
-                child: _loading
+                child: loading
                     ? const CircularProgressIndicator(color: Colors.white)
                     : const Text(
-                        "Save Charger",
+                        "Add Charger",
                         style: TextStyle(color: Colors.white, fontSize: 16),
                       ),
               ),
@@ -135,33 +128,5 @@ class _AddChargerDetailsScreenState extends State<AddChargerDetailsScreen> {
         ),
       ),
     );
-  }
-
-  // ===============================
-  // FIELD WIDGET
-  // ===============================
-  Widget _field({
-    required TextEditingController controller,
-    required String hint,
-    TextInputType keyboard = TextInputType.text,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboard,
-
-      decoration: InputDecoration(
-        hintText: hint,
-
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _brandController.dispose();
-    _modelController.dispose();
-    _priceController.dispose();
-    super.dispose();
   }
 }

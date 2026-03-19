@@ -1,9 +1,9 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationService {
-  /// =====================================================
-  /// CHECK & REQUEST PERMISSION
-  /// =====================================================
+  /// ===============================
+  /// CHECK LOCATION PERMISSION
+  /// ===============================
   static Future<LocationPermission> _handlePermission() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
 
@@ -25,42 +25,66 @@ class LocationService {
       await Geolocator.openAppSettings();
 
       throw Exception(
-        "Location permission permanently denied. Enable from settings.",
+        "Location permission permanently denied. Enable it in settings.",
       );
     }
 
     return permission;
   }
 
-  /// =====================================================
+  /// ===============================
   /// GET CURRENT LOCATION
-  /// =====================================================
+  /// ===============================
   static Future<Position> getCurrentLocation() async {
     await _handlePermission();
 
-    try {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 15),
-      );
-    } catch (e) {
-      throw Exception("Failed to get location: $e");
-    }
+    return await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
   }
 
-  /// =====================================================
-  /// GET LAST KNOWN LOCATION (FASTER)
-  /// =====================================================
+  /// ===============================
+  /// GET LAST KNOWN LOCATION
+  /// (faster but may be outdated)
+  /// ===============================
   static Future<Position?> getLastKnownLocation() async {
     await _handlePermission();
 
     return await Geolocator.getLastKnownPosition();
   }
 
-  /// =====================================================
-  /// OPEN LOCATION SETTINGS
-  /// =====================================================
+  /// ===============================
+  /// REAL TIME LOCATION STREAM
+  /// Useful for live map tracking
+  /// ===============================
+  static Stream<Position> getLocationStream() async* {
+    await _handlePermission();
+
+    yield* Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    );
+  }
+
+  /// ===============================
+  /// OPEN DEVICE LOCATION SETTINGS
+  /// ===============================
   static Future<void> openLocationSettings() async {
     await Geolocator.openLocationSettings();
+  }
+
+  /// ===============================
+  /// DISTANCE BETWEEN TWO POINTS
+  /// (returns meters)
+  /// ===============================
+  static double calculateDistance(
+    double startLat,
+    double startLng,
+    double endLat,
+    double endLng,
+  ) {
+    return Geolocator.distanceBetween(startLat, startLng, endLat, endLng);
   }
 }

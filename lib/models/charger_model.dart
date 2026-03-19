@@ -9,7 +9,7 @@ class ChargerModel {
   final String? providerId;
   final DateTime? createdAt;
 
-  ChargerModel({
+  const ChargerModel({
     required this.id,
     required this.brand,
     required this.model,
@@ -21,7 +21,6 @@ class ChargerModel {
     this.createdAt,
   });
 
-  /// ✅ Supabase JSON → Model
   factory ChargerModel.fromJson(Map<String, dynamic> json) {
     return ChargerModel(
       id: json['id'].toString(),
@@ -33,12 +32,11 @@ class ChargerModel {
       pricePerUnit: (json['price_per_unit'] ?? 0).toDouble(),
       providerId: json['provider_id'],
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at'])
           : null,
     );
   }
 
-  /// ✅ Model → Supabase JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -51,5 +49,29 @@ class ChargerModel {
       'provider_id': providerId,
       'created_at': createdAt?.toIso8601String(),
     };
+  }
+
+  ChargerModel copyWith({
+    String? id,
+    String? brand,
+    String? model,
+    double? latitude,
+    double? longitude,
+    bool? isAvailable,
+    double? pricePerUnit,
+    String? providerId,
+    DateTime? createdAt,
+  }) {
+    return ChargerModel(
+      id: id ?? this.id,
+      brand: brand ?? this.brand,
+      model: model ?? this.model,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      isAvailable: isAvailable ?? this.isAvailable,
+      pricePerUnit: pricePerUnit ?? this.pricePerUnit,
+      providerId: providerId ?? this.providerId,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 }

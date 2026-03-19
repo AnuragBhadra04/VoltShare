@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+import '../core/constants/colors.dart';
 
 class RazorpayService {
   static Razorpay? _razorpay;
@@ -12,14 +15,12 @@ class RazorpayService {
     required Function(PaymentFailureResponse) onError,
     required Function(ExternalWalletResponse) onWallet,
   }) {
-    dispose(); // ✅ Prevent duplicate listeners
+    dispose(); // prevent duplicate listeners
 
     _razorpay = Razorpay();
 
     _razorpay!.on(Razorpay.EVENT_PAYMENT_SUCCESS, onSuccess);
-
     _razorpay!.on(Razorpay.EVENT_PAYMENT_ERROR, onError);
-
     _razorpay!.on(Razorpay.EVENT_EXTERNAL_WALLET, onWallet);
   }
 
@@ -38,20 +39,30 @@ class RazorpayService {
       return;
     }
 
-    final options = {
-      'key': 'YOUR_RAZORPAY_KEY', // 🔥 PUT YOUR REAL KEY HERE
+    final razorpayKey = dotenv.env['RAZORPAY_KEY'] ?? "";
 
-      'amount': (amount * 100).toInt(), // Razorpay uses paise
+    if (razorpayKey.isEmpty) {
+      debugPrint("❌ Razorpay key missing");
+      return;
+    }
+
+    final options = {
+      'key': razorpayKey,
+
+      // Razorpay requires amount in paise
+      'amount': (amount * 100).toInt(),
 
       'name': name,
-
       'description': description,
 
       'timeout': 300,
 
       'prefill': {'contact': contact, 'email': email},
 
-      'theme': {'color': '#6C63FF'},
+      'theme': {
+        'color':
+            '#${AppColors.primaryPurple.value.toRadixString(16).substring(2)}',
+      },
     };
 
     try {
@@ -59,6 +70,20 @@ class RazorpayService {
     } catch (e) {
       debugPrint("❌ Razorpay open error: $e");
     }
+  }
+
+  // =====================================================
+  // VERIFY PAYMENT (Future backend verification)
+  // =====================================================
+  static Future<void> verifyPayment({
+    required String paymentId,
+    required String orderId,
+    required String signature,
+  }) async {
+    // In production this should be verified on backend
+    // using Razorpay secret key
+
+    debugPrint("Payment verification placeholder");
   }
 
   // =====================================================

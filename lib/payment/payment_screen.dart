@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import '../core/constants/colors.dart';
 import '../rating/rating_screen.dart';
 import '../services/api_service.dart';
@@ -30,28 +32,24 @@ class _PaymentScreenState extends State<PaymentScreen> {
     _razorpay = Razorpay();
 
     _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-
     _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-
     _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
   }
 
-  // ===============================
-  // PAYMENT SUCCESS
-  // ===============================
+  /// ===============================
+  /// PAYMENT SUCCESS
+  /// ===============================
   Future<void> _handlePaymentSuccess(PaymentSuccessResponse response) async {
     setState(() => _loading = true);
 
     try {
-      // ✅ UPDATE BOOKING STATUS
       await ApiService.supabase
           .from('bookings')
-          .update({'status': 'completed', 'payment_id': response.paymentId})
+          .update({'status': 'paid', 'payment_id': response.paymentId})
           .eq('id', widget.bookingId);
 
       if (!mounted) return;
 
-      // ✅ PASS bookingId to RatingScreen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -59,47 +57,48 @@ class _PaymentScreenState extends State<PaymentScreen> {
         ),
       );
     } catch (e) {
-      debugPrint("Payment success DB error: $e");
+      debugPrint("Payment DB update error: $e");
     }
 
     setState(() => _loading = false);
   }
 
-  // ===============================
-  // PAYMENT FAILURE
-  // ===============================
+  /// ===============================
+  /// PAYMENT FAILURE
+  /// ===============================
   void _handlePaymentError(PaymentFailureResponse response) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Payment Failed: ${response.message}")),
     );
   }
 
-  // ===============================
-  // WALLET HANDLER
-  // ===============================
+  /// ===============================
+  /// WALLET
+  /// ===============================
   void _handleExternalWallet(ExternalWalletResponse response) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text("Wallet selected: ${response.walletName}")),
     );
   }
 
-  // ===============================
-  // OPEN CHECKOUT
-  // ===============================
+  /// ===============================
+  /// OPEN RAZORPAY CHECKOUT
+  /// ===============================
   void _openCheckout() {
+    final razorpayKey = dotenv.env['RAZORPAY_KEY'];
+
+    if (razorpayKey == null) {
+      debugPrint("Razorpay key missing in .env");
+      return;
+    }
+
     var options = {
-      'key': 'YOUR_RAZORPAY_KEY',
-
+      'key': razorpayKey,
       'amount': (widget.amount * 100).toInt(),
-
       'name': 'VoltShare',
-
       'description': 'EV / Charger Booking',
-
       'timeout': 300,
-
       'prefill': {'contact': '', 'email': ''},
-
       'theme': {'color': '#6C63FF'},
     };
 
@@ -116,71 +115,139 @@ class _PaymentScreenState extends State<PaymentScreen> {
     super.dispose();
   }
 
-  // ===============================
-  // UI
-  // ===============================
+  /// ===============================
+  /// UI
+  /// ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
 
-      appBar: AppBar(
-        title: const Text("Payment"),
-        backgroundColor: AppColors.primaryPurple,
-      ),
-
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-
-            children: [
-              const Icon(
-                Icons.payment,
-                size: 80,
-                color: AppColors.primaryPurple,
+      body: Column(
+        children: [
+          /// HEADER
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(24, 50, 24, 24),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF6C63FF), Color(0xFF5E8DAA)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-
-              const SizedBox(height: 20),
-
-              Text(
-                "Amount: ₹${widget.amount}",
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+              borderRadius: BorderRadius.only(
+                bottomLeft: Radius.circular(28),
+                bottomRight: Radius.circular(28),
+              ),
+            ),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Payment",
+                  style: TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-              ),
+                SizedBox(height: 6),
+                Text(
+                  "Complete your VoltShare booking",
+                  style: TextStyle(color: Colors.white70),
+                ),
+              ],
+            ),
+          ),
 
-              const SizedBox(height: 40),
+          /// BODY
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
 
-              SizedBox(
-                width: double.infinity,
-                height: 55,
-
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _openCheckout,
-
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryPurple,
-
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(18),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  /// PAYMENT ICON
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryPurple.withOpacity(.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.payment,
+                      size: 60,
+                      color: AppColors.primaryPurple,
                     ),
                   ),
 
-                  child: _loading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          "Pay Now",
-                          style: TextStyle(fontSize: 18, color: Colors.white),
+                  const SizedBox(height: 30),
+
+                  /// AMOUNT CARD
+                  Container(
+                    padding: const EdgeInsets.all(22),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 6),
                         ),
-                ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        const Text(
+                          "Total Amount",
+                          style: TextStyle(fontSize: 16, color: Colors.black54),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          "₹${widget.amount}",
+                          style: const TextStyle(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondaryGreen,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const Spacer(),
+
+                  /// PAY BUTTON
+                  SizedBox(
+                    width: double.infinity,
+                    height: 55,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _openCheckout,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                      ),
+                      child: _loading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "Pay Now",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

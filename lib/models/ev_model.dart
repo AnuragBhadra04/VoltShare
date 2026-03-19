@@ -8,7 +8,7 @@ class EVModel {
   final String? providerId;
   final DateTime? createdAt;
 
-  EVModel({
+  const EVModel({
     required this.id,
     required this.name,
     required this.latitude,
@@ -19,7 +19,6 @@ class EVModel {
     this.createdAt,
   });
 
-  // ✅ Supabase JSON → Model
   factory EVModel.fromJson(Map<String, dynamic> json) {
     return EVModel(
       id: json['id'].toString(),
@@ -30,12 +29,11 @@ class EVModel {
       isAvailable: json['is_available'] ?? true,
       providerId: json['provider_id'],
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at'])
           : null,
     );
   }
 
-  // ✅ Model → Supabase JSON
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -47,5 +45,27 @@ class EVModel {
       'provider_id': providerId,
       'created_at': createdAt?.toIso8601String(),
     };
+  }
+
+  EVModel copyWith({
+    String? id,
+    String? name,
+    double? latitude,
+    double? longitude,
+    double? pricePerHour,
+    bool? isAvailable,
+    String? providerId,
+    DateTime? createdAt,
+  }) {
+    return EVModel(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      pricePerHour: pricePerHour ?? this.pricePerHour,
+      isAvailable: isAvailable ?? this.isAvailable,
+      providerId: providerId ?? this.providerId,
+      createdAt: createdAt ?? this.createdAt,
+    );
   }
 }

@@ -1,93 +1,35 @@
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-
-import '../models/ev_model.dart';
-import '../models/charger_model.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 
 class MapMarkerHelper {
-  // ===============================
-  // USER MARKER
-  // ===============================
-  static Marker createUserMarker({
-    required double latitude,
-    required double longitude,
-  }) {
+  /// USER MARKER
+  static Marker userMarker(LatLng position) {
     return Marker(
-      markerId: const MarkerId("user_location"),
-
-      position: LatLng(latitude, longitude),
-
-      infoWindow: const InfoWindow(title: "You are here"),
-
-      icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+      point: position,
+      width: 50,
+      height: 50,
+      child: const Icon(Icons.my_location, color: Colors.blue, size: 40),
     );
   }
 
-  // ===============================
-  // EV MARKERS
-  // ===============================
-  static Set<Marker> createEVMarkers(
-    List<EVModel> evs, {
-    Function(EVModel)? onTap,
-  }) {
-    return evs.map((ev) {
-      return Marker(
-        markerId: MarkerId("ev_${ev.id}"),
-
-        position: LatLng(ev.latitude, ev.longitude),
-
-        infoWindow: InfoWindow(
-          title: ev.name,
-          snippet: "₹${ev.pricePerHour} / hour",
-        ),
-
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueGreen),
-
-        onTap: () {
-          if (onTap != null) {
-            onTap(ev);
-          }
-        },
-      );
-    }).toSet();
+  /// EV MARKER
+  static Marker evMarker(LatLng position) {
+    return Marker(
+      point: position,
+      width: 50,
+      height: 50,
+      child: const Icon(Icons.electric_scooter, color: Colors.green, size: 35),
+    );
   }
 
-  // ===============================
-  // CHARGER MARKERS
-  // ===============================
-  static Set<Marker> createChargerMarkers(
-    List<ChargerModel> chargers, {
-    Function(ChargerModel)? onTap,
-  }) {
-    return chargers.map((charger) {
-      return Marker(
-        markerId: MarkerId("charger_${charger.id}"),
-
-        position: LatLng(charger.latitude, charger.longitude),
-
-        infoWindow: InfoWindow(
-          title: "${charger.brand} ${charger.model}",
-          snippet: "₹${charger.pricePerUnit} / unit",
-        ),
-
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
-
-        onTap: () {
-          if (onTap != null) {
-            onTap(charger);
-          }
-        },
-      );
-    }).toSet();
-  }
-
-  // ===============================
-  // MERGE ALL MARKERS
-  // ===============================
-  static Set<Marker> mergeMarkers({
-    required Marker userMarker,
-    required Set<Marker> evMarkers,
-    required Set<Marker> chargerMarkers,
-  }) {
-    return {userMarker, ...evMarkers, ...chargerMarkers};
+  /// CHARGER MARKER
+  static Marker chargerMarker(LatLng position) {
+    return Marker(
+      point: position,
+      width: 50,
+      height: 50,
+      child: const Icon(Icons.ev_station, color: Colors.orange, size: 35),
+    );
   }
 }
