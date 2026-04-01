@@ -12,35 +12,35 @@ import '../profile/profile_screen.dart';
 import '../map/map_screen.dart';
 
 class AppRoutes {
-  /// Core routes
+  /// CORE FLOW
   static const splash = "/";
   static const auth = "/auth";
   static const role = "/role";
   static const permission = "/permission";
 
-  /// Main app routes
+  /// DASHBOARDS
   static const consumerHome = "/consumerHome";
   static const providerHome = "/providerHome";
 
-  /// Features
-  static const map = "/map";
+  /// EXTRA
   static const profile = "/profile";
+  static const map = "/map";
 
-  /// Route Map
+  /// ROUTE MAP
   static final Map<String, WidgetBuilder> routes = {
-    splash: (context) => const SplashScreen(),
+    splash: (_) => const SplashScreen(),
 
-    /// Auth flow
-    auth: (context) => const PhoneAuthScreen(),
-    role: (context) => const RoleSelectionScreen(),
-    permission: (context) => const PermissionScreen(),
+    /// AUTH FLOW
+    auth: (_) => const PhoneAuthScreen(),
+    role: (_) => const RoleSelectionScreen(),
+    permission: (_) => const PermissionScreen(),
 
-    /// Main screens
-    consumerHome: (context) => const ConsumerHomeScreen(),
-    providerHome: (context) => const ProviderHomeScreen(),
+    /// MAIN
+    consumerHome: (_) => const ConsumerHomeScreen(),
+    providerHome: (_) => const ProviderHomeScreen(),
 
-    /// Utilities
-    profile: (context) => const ProfileScreen(),
-    map: (context) => const MapScreen(),
+    /// EXTRA
+    profile: (_) => const ProfileScreen(),
+    map: (_) => const MapScreen(),
   };
 }

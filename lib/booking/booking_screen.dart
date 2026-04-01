@@ -3,6 +3,7 @@ import '../payment/payment_screen.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../core/constants/colors.dart';
+import '../consumer/kyc_screen.dart';
 
 class BookingScreen extends StatefulWidget {
   final Map<String, dynamic> ev;
@@ -15,44 +16,54 @@ class BookingScreen extends StatefulWidget {
 
 class _BookingScreenState extends State<BookingScreen> {
   bool loading = false;
+  bool acceptedTerms = false;
 
   final supabase = ApiService.supabase;
 
   Future<void> createBookingAndPay() async {
     try {
-      setState(() => loading = true);
-
       final user = AuthService.currentUser;
 
       if (user == null) {
         throw Exception("User not logged in");
       }
 
-      /// =====================================================
-      /// ✅ NEW: DL VERIFICATION CHECK
-      /// =====================================================
-      final userProfile = await supabase
+      /// ============================================
+      /// ✅ TERMS CHECK
+      /// ============================================
+      if (!acceptedTerms) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Please accept Terms & Conditions")),
+        );
+        return;
+      }
+
+      setState(() => loading = true);
+
+      /// ============================================
+      /// ✅ KYC CHECK (DL + AADHAR)
+      /// ============================================
+      final userData = await supabase
           .from("users")
           .select()
           .eq("id", user.id)
           .single();
 
-      if (userProfile["dl_url"] == null) {
+      if (userData["kyc_verified"] != true) {
         if (!mounted) return;
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Please upload Driving License in profile first"),
-          ),
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const KYCScreen()),
         );
 
         setState(() => loading = false);
         return;
       }
 
-      /// =====================================================
-      /// PRICE DETECTION
-      /// =====================================================
+      /// ============================================
+      /// PRICE
+      /// ============================================
       final double amount =
           (widget.ev['pricePerHour'] ??
                   widget.ev['price_per_hour'] ??
@@ -69,9 +80,9 @@ class _BookingScreenState extends State<BookingScreen> {
         throw Exception("Provider not found");
       }
 
-      /// =====================================================
+      /// ============================================
       /// CREATE BOOKING
-      /// =====================================================
+      /// ============================================
       final response = await supabase
           .from('bookings')
           .insert({
@@ -90,9 +101,9 @@ class _BookingScreenState extends State<BookingScreen> {
 
       if (!mounted) return;
 
-      /// =====================================================
+      /// ============================================
       /// NAVIGATE TO PAYMENT
-      /// =====================================================
+      /// ============================================
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -128,15 +139,13 @@ class _BookingScreenState extends State<BookingScreen> {
 
       body: Column(
         children: [
-          /// HEADER
+          /// ================= HEADER =================
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 50, 24, 24),
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF6C63FF), Color(0xFF5E8DAA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(28),
@@ -163,7 +172,7 @@ class _BookingScreenState extends State<BookingScreen> {
             ),
           ),
 
-          /// BODY
+          /// ================= BODY =================
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(24),
@@ -224,31 +233,37 @@ class _BookingScreenState extends State<BookingScreen> {
                           children: [
                             const Text("Price", style: TextStyle(fontSize: 16)),
 
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-
-                              decoration: BoxDecoration(
-                                color: AppColors.secondaryGreen.withOpacity(
-                                  0.1,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-
-                              child: Text(
-                                "₹$amount",
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.secondaryGreen,
-                                ),
+                            Text(
+                              "₹$amount",
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.secondaryGreen,
                               ),
                             ),
                           ],
                         ),
                       ],
                     ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  /// ✅ TERMS & CONDITIONS
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: acceptedTerms,
+                        onChanged: (v) {
+                          setState(() => acceptedTerms = v!);
+                        },
+                      ),
+                      const Expanded(
+                        child: Text(
+                          "I accept Terms & Conditions",
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ),
+                    ],
                   ),
 
                   const Spacer(),

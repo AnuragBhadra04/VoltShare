@@ -24,7 +24,7 @@ class AuthService {
   static Future<void> signInWithGoogle() async {
     await supabase.auth.signInWithOAuth(
       OAuthProvider.google,
-      redirectTo: 'io.supabase.flutter://login-callback',
+      redirectTo: 'com.example.ev_community_app://login-callback',
     );
   }
 

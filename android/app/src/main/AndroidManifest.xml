@@ -49,7 +49,7 @@
         <category android:name="android.intent.category.BROWSABLE" />
 
         <data
-            android:scheme="io.supabase.flutter"
+            android:scheme="com.example.ev_community_app"
             android:host="login-callback" />
     </intent-filter>
         </activity>

@@ -5,6 +5,9 @@ class EVModel {
   final double longitude;
   final double pricePerHour;
   final bool isAvailable;
+
+  final String vehicleType; // ✅ ADD THIS
+
   final String? providerId;
   final DateTime? createdAt;
 
@@ -15,6 +18,7 @@ class EVModel {
     required this.longitude,
     required this.pricePerHour,
     required this.isAvailable,
+    required this.vehicleType, // ✅ REQUIRED
     this.providerId,
     this.createdAt,
   });
@@ -27,6 +31,9 @@ class EVModel {
       longitude: (json['longitude'] ?? 0).toDouble(),
       pricePerHour: (json['price_per_hour'] ?? 0).toDouble(),
       isAvailable: json['is_available'] ?? true,
+
+      vehicleType: json['vehicle_type'] ?? '2_wheeler', // 🔥 IMPORTANT
+
       providerId: json['provider_id'],
       createdAt: json['created_at'] != null
           ? DateTime.tryParse(json['created_at'])
@@ -42,6 +49,9 @@ class EVModel {
       'longitude': longitude,
       'price_per_hour': pricePerHour,
       'is_available': isAvailable,
+
+      'vehicle_type': vehicleType, // ✅ ADD THIS
+
       'provider_id': providerId,
       'created_at': createdAt?.toIso8601String(),
     };
@@ -54,6 +64,7 @@ class EVModel {
     double? longitude,
     double? pricePerHour,
     bool? isAvailable,
+    String? vehicleType, // ✅ ADD
     String? providerId,
     DateTime? createdAt,
   }) {
@@ -64,6 +75,7 @@ class EVModel {
       longitude: longitude ?? this.longitude,
       pricePerHour: pricePerHour ?? this.pricePerHour,
       isAvailable: isAvailable ?? this.isAvailable,
+      vehicleType: vehicleType ?? this.vehicleType, // ✅ ADD
       providerId: providerId ?? this.providerId,
       createdAt: createdAt ?? this.createdAt,
     );

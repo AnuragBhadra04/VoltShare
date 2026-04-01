@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-
 import 'app/app.dart';
-
 import 'providers/ev_provider.dart';
 import 'providers/charger_provider.dart';
 import 'providers/location_provider.dart';

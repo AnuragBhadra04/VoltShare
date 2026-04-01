@@ -7,7 +7,9 @@ import '../../models/charger_model.dart';
 import '../../booking/booking_screen.dart';
 
 class ChargerListScreen extends StatefulWidget {
-  const ChargerListScreen({super.key});
+  final String vehicleType;
+
+  const ChargerListScreen({super.key, required this.vehicleType});
 
   @override
   State<ChargerListScreen> createState() => _ChargerListScreenState();
@@ -31,17 +33,23 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
         _error = null;
       });
 
+      /// 📍 GET LOCATION
       final location = await LocationService.getCurrentLocation();
 
+      /// 📡 FETCH (2KM RADIUS)
       final chargers = await ApiService.getNearbyChargers(
         location.latitude,
         location.longitude,
+        radiusKm: 2,
       );
+
+      /// 🎯 (OPTIONAL) FILTER IF YOU ADD TYPE IN DB LATER
+      final filtered = chargers;
 
       if (!mounted) return;
 
       setState(() {
-        _chargers = chargers;
+        _chargers = filtered;
         _loading = false;
       });
     } catch (e) {
@@ -67,23 +75,19 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.fromLTRB(24, 55, 24, 24),
-
             decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Color(0xFF6C63FF), Color(0xFF5E8DAA)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.only(
                 bottomLeft: Radius.circular(28),
                 bottomRight: Radius.circular(28),
               ),
             ),
-
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
+                const Text(
                   "Nearby Chargers",
                   style: TextStyle(
                     fontSize: 26,
@@ -91,10 +95,12 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
                     color: Colors.white,
                   ),
                 ),
-                SizedBox(height: 6),
+                const SizedBox(height: 6),
                 Text(
-                  "Charging stations available around you",
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                  widget.vehicleType == "2_wheeler"
+                      ? "2W compatible chargers"
+                      : "4W compatible chargers",
+                  style: const TextStyle(color: Colors.white70),
                 ),
               ],
             ),
@@ -104,30 +110,16 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
           Expanded(
             child: RefreshIndicator(
               onRefresh: _loadChargers,
-
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _error != null
-                  ? Center(
-                      child: Text(
-                        _error!,
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                    )
+                  ? Center(child: Text(_error!))
                   : _chargers.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "No chargers available nearby",
-                        style: TextStyle(fontSize: 16),
-                      ),
-                    )
+                  ? const Center(child: Text("No chargers found within 2km"))
                   : ListView.builder(
                       padding: const EdgeInsets.all(16),
                       itemCount: _chargers.length,
-                      itemBuilder: (_, index) {
-                        final charger = _chargers[index];
-                        return _chargerCard(charger);
-                      },
+                      itemBuilder: (_, i) => _chargerCard(_chargers[i]),
                     ),
             ),
           ),
@@ -140,7 +132,6 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(18),
-
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -159,15 +150,12 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
           /// TOP ROW
           Row(
             children: [
-              /// ICON
               Container(
                 padding: const EdgeInsets.all(12),
-
                 decoration: BoxDecoration(
                   color: AppColors.primaryPurple.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-
                 child: const Icon(
                   Icons.ev_station,
                   color: AppColors.primaryPurple,
@@ -176,7 +164,6 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
 
               const SizedBox(width: 14),
 
-              /// NAME + STATUS
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,42 +175,22 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
                         fontWeight: FontWeight.bold,
                       ),
                     ),
-
                     const SizedBox(height: 4),
-
                     Text(
-                      charger.isAvailable
-                          ? "Available now"
-                          : "Currently unavailable",
+                      charger.isAvailable ? "Available" : "Unavailable",
                       style: TextStyle(
-                        fontSize: 13,
-                        color: charger.isAvailable
-                            ? Colors.green
-                            : Colors.redAccent,
+                        color: charger.isAvailable ? Colors.green : Colors.red,
                       ),
                     ),
                   ],
                 ),
               ),
 
-              /// PRICE
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-
-                decoration: BoxDecoration(
-                  color: AppColors.secondaryGreen.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-
-                child: Text(
-                  "₹${charger.pricePerUnit}/unit",
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.secondaryGreen,
-                  ),
+              Text(
+                "₹${charger.pricePerUnit}/unit",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.secondaryGreen,
                 ),
               ),
             ],
@@ -234,7 +201,6 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
           /// BOOK BUTTON
           SizedBox(
             width: double.infinity,
-
             child: ElevatedButton(
               onPressed: charger.isAvailable
                   ? () {
@@ -244,6 +210,7 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
                           builder: (_) => BookingScreen(
                             ev: {
                               "id": charger.id,
+                              "provider_id": charger.providerId,
                               "brand": charger.brand,
                               "model": charger.model,
                               "price": charger.pricePerUnit,
@@ -254,22 +221,12 @@ class _ChargerListScreenState extends State<ChargerListScreen> {
                       );
                     }
                   : null,
-
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryPurple,
-                disabledBackgroundColor: Colors.grey.shade400,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
               ),
-
               child: const Text(
-                "Request Charger",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                ),
+                "Book Charger",
+                style: TextStyle(color: Colors.white),
               ),
             ),
           ),

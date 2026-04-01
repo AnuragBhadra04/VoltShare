@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:app_links/app_links.dart';
 
 import '../services/auth_service.dart';
-import '../services/role_service.dart';
-
-import '../consumer/consumer_home_screen.dart';
-import '../provider/provider_home_screen.dart';
+import '../permissions/permission_screen.dart';
+import '../role/role_selection_screen.dart';
 import 'signup_screen.dart';
 
 class PhoneAuthScreen extends StatefulWidget {
@@ -27,15 +26,26 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   @override
   void initState() {
     super.initState();
+    _listenForGoogleCallback();
+  }
 
-    /// Listen for Google login success
-    supabase.auth.onAuthStateChange.listen((data) async {
-      final session = data.session;
+  // ===============================
+  // ✅ ONLY PLACE that handles Google OAuth deep link
+  // ===============================
+  void _listenForGoogleCallback() {
+    AppLinks().uriLinkStream.listen((uri) async {
+      if (!mounted) return;
 
-      if (session != null && mounted) {
-        await AuthService.createUserProfileIfNotExists();
-
-        _goToHome();
+      // ✅ Match your new custom scheme
+      if (uri.scheme == 'com.example.ev_community_app' &&
+          uri.queryParameters.containsKey('code')) {
+        try {
+          await supabase.auth.getSessionFromUrl(uri);
+          await AuthService.createUserProfileIfNotExists();
+          await _goToNext();
+        } catch (e) {
+          debugPrint('OAuth error: $e');
+        }
       }
     });
   }
@@ -47,15 +57,14 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
     try {
       setState(() => loading = true);
 
-      final email = emailController.text.trim();
-      final password = passwordController.text.trim();
-
-      final response = await AuthService.signInWithEmail(email, password);
+      final response = await AuthService.signInWithEmail(
+        emailController.text.trim(),
+        passwordController.text.trim(),
+      );
 
       if (response.session != null) {
         await AuthService.createUserProfileIfNotExists();
-
-        _goToHome();
+        await _goToNext();
       }
     } on AuthException catch (e) {
       ScaffoldMessenger.of(
@@ -71,53 +80,62 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
   }
 
   // ===============================
-  // GOOGLE LOGIN
+  // GOOGLE LOGIN — just opens browser
   // ===============================
   Future<void> googleLogin() async {
     try {
       await AuthService.signInWithGoogle();
+      // ✅ Deep link handled by _listenForGoogleCallback above
     } catch (e) {
-      print(e);
+      debugPrint('Google login error: $e');
     }
   }
 
   // ===============================
-  // NAVIGATE HOME
+  // ✅ SINGLE navigation method
   // ===============================
-  Future<void> _goToHome() async {
-    final role = await RoleService.getRole();
+  Future<void> _goToNext() async {
+    if (!mounted) return;
+
+    final session = supabase.auth.currentSession;
+    if (session == null) return;
+
+    final row = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
 
     if (!mounted) return;
 
-    if (role == "provider") {
+    final role = row?["role"];
+
+    if (role == null || role == '') {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ProviderHomeScreen()),
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
       );
     } else {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ConsumerHomeScreen()),
+        MaterialPageRoute(builder: (_) => const PermissionScreen()),
       );
     }
   }
 
   // ===============================
-  // UI
+  // UI — UNCHANGED
   // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xffF5F6FA),
-
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -158,27 +176,20 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                   TextField(
                     controller: passwordController,
                     obscureText: hidePassword,
-
                     decoration: InputDecoration(
                       hintText: "Password",
                       prefixIcon: const Icon(Icons.lock),
-
                       suffixIcon: IconButton(
                         icon: Icon(
                           hidePassword
                               ? Icons.visibility_off
                               : Icons.visibility,
                         ),
-                        onPressed: () {
-                          setState(() {
-                            hidePassword = !hidePassword;
-                          });
-                        },
+                        onPressed: () =>
+                            setState(() => hidePassword = !hidePassword),
                       ),
-
                       filled: true,
                       fillColor: Colors.white,
-
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -192,17 +203,14 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                   SizedBox(
                     width: double.infinity,
                     height: 55,
-
                     child: ElevatedButton(
                       onPressed: loading ? null : signIn,
-
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff6C63FF),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-
                       child: loading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
@@ -225,11 +233,9 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                   /// GOOGLE LOGIN
                   GestureDetector(
                     onTap: googleLogin,
-
                     child: Container(
                       width: double.infinity,
                       height: 55,
-
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -240,14 +246,11 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                           ),
                         ],
                       ),
-
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.g_mobiledata, size: 28),
-
                           SizedBox(width: 10),
-
                           Text(
                             "Continue with Google",
                             style: TextStyle(
@@ -267,17 +270,13 @@ class _PhoneAuthScreenState extends State<PhoneAuthScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Don't have an account? "),
-
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const SignUpScreen(),
-                            ),
-                          );
-                        },
-
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const SignUpScreen(),
+                          ),
+                        ),
                         child: const Text(
                           "Sign Up",
                           style: TextStyle(

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
-import '../services/role_service.dart';
+
+import '../services/auth_service.dart';
+
+import '../role/role_selection_screen.dart';
 import '../provider/provider_home_screen.dart';
 import '../consumer/consumer_home_screen.dart';
 
@@ -12,6 +15,9 @@ class PermissionScreen extends StatefulWidget {
 }
 
 class _PermissionScreenState extends State<PermissionScreen> {
+  /// ===============================
+  /// HANDLE PERMISSION + NAVIGATION
+  /// ===============================
   Future<void> _allow() async {
     await [
       Permission.locationWhenInUse,
@@ -19,27 +25,43 @@ class _PermissionScreenState extends State<PermissionScreen> {
       Permission.notification,
     ].request();
 
-    final role = await RoleService.getRole();
+    /// ✅ GET USER FROM DB (IMPORTANT)
+    final user = await AuthService.getCurrentUserProfile();
 
     if (!mounted) return;
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => role == 'provider'
-            ? const ProviderHomeScreen()
-            : const ConsumerHomeScreen(),
-      ),
-    );
+    /// ❌ ROLE NOT SET → GO ROLE SELECTION
+    if (user?.role == null) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      );
+      return;
+    }
+
+    /// ✅ ROLE EXISTS → GO DASHBOARD
+    if (user!.role == "provider") {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ProviderHomeScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const ConsumerHomeScreen()),
+      );
+    }
   }
 
+  /// ===============================
+  /// UI
+  /// ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
         width: double.infinity,
 
-        /// 🌈 Same Gradient Theme
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -63,7 +85,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  /// LOGO CARD
+                  /// LOGO
                   Container(
                     height: 180,
                     width: 180,
@@ -101,7 +123,7 @@ class _PermissionScreenState extends State<PermissionScreen> {
 
                   const SizedBox(height: 32),
 
-                  /// PERMISSION LIST
+                  /// PERMISSION ITEMS
                   Column(
                     children: const [
                       _PermissionItem(
@@ -130,10 +152,11 @@ class _PermissionScreenState extends State<PermissionScreen> {
 
                   const SizedBox(height: 40),
 
-                  /// ALLOW BUTTON
+                  /// BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 55,
+
                     child: Container(
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
@@ -181,7 +204,9 @@ class _PermissionScreenState extends State<PermissionScreen> {
   }
 }
 
-/// PERMISSION ITEM WIDGET
+/// ===============================
+/// PERMISSION ITEM
+/// ===============================
 class _PermissionItem extends StatelessWidget {
   final IconData icon;
   final String title;

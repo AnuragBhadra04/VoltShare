@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-import '../role/role_selection_screen.dart';
-import '../services/role_service.dart';
+import 'package:ev_community_app/role/role_selection_screen.dart';
 import '../auth/signin_screen.dart';
-
-import '../consumer/consumer_home_screen.dart';
-import '../provider/provider_home_screen.dart';
+import '../permissions/permission_screen.dart';
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -26,11 +23,12 @@ class _SplashScreenState extends State<SplashScreen>
 
   final supabase = Supabase.instance.client;
 
+  bool _navigated = false;
+
   @override
   void initState() {
     super.initState();
 
-    /// Screen animation
     _screenController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
@@ -45,7 +43,6 @@ class _SplashScreenState extends State<SplashScreen>
 
     _screenController.forward();
 
-    /// Hand wave animation
     _handController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 700),
@@ -57,8 +54,10 @@ class _SplashScreenState extends State<SplashScreen>
 
     _handController.repeat(reverse: true);
 
-    /// Start routing after delay
-    Future.delayed(const Duration(seconds: 2), _goNext);
+    /// ✅ Use post-frame to avoid navigation issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(const Duration(seconds: 2), _goNext);
+    });
   }
 
   @override
@@ -68,23 +67,11 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
-  /// ROUTING LOGIC
   Future<void> _goNext() async {
-    final session = supabase.auth.currentSession;
-    final role = await RoleService.getRole();
-
     if (!mounted) return;
 
-    /// ROLE NOT CHOSEN
-    if (role == null) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
-      );
-      return;
-    }
+    final session = supabase.auth.currentSession;
 
-    /// ROLE CHOSEN BUT USER NOT LOGGED IN
     if (session == null) {
       Navigator.pushReplacement(
         context,
@@ -93,23 +80,40 @@ class _SplashScreenState extends State<SplashScreen>
       return;
     }
 
-    /// ROLE + LOGIN OK
-    if (role == "consumer") {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ConsumerHomeScreen()),
-      );
-    } else if (role == "provider") {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ProviderHomeScreen()),
-      );
-    } else {
+    AuthService.createUserProfileIfNotExists();
+
+    final row = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+    if (!mounted) return;
+
+    final role = row?["role"];
+
+    if (role == null || role == '') {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
       );
+      return;
     }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const PermissionScreen()),
+    );
+  }
+
+  void _navigate(Widget screen) {
+    if (_navigated) return;
+    _navigated = true;
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
   }
 
   @override
@@ -117,7 +121,6 @@ class _SplashScreenState extends State<SplashScreen>
     return Scaffold(
       body: Container(
         width: double.infinity,
-
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [
@@ -130,33 +133,25 @@ class _SplashScreenState extends State<SplashScreen>
             end: Alignment.bottomCenter,
           ),
         ),
-
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-
             child: FadeTransition(
               opacity: _fade,
-
               child: SlideTransition(
                 position: _slide,
-
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      /// LOGO
                       Container(
                         height: 220,
                         width: 220,
-
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(50),
                         ),
-
                         child: Center(
                           child: Image.asset(
                             "assets/images/app_logo.png",
@@ -164,10 +159,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ),
                       ),
-
                       const SizedBox(height: 40),
-
-                      /// Greeting
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -179,7 +171,6 @@ class _SplashScreenState extends State<SplashScreen>
                               color: Colors.black,
                             ),
                           ),
-
                           AnimatedBuilder(
                             animation: _handWave,
                             builder: (context, child) {
@@ -194,9 +185,7 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-
                       const SizedBox(height: 8),
-
                       const Text(
                         "Welcome to VoltShare",
                         textAlign: TextAlign.center,

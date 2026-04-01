@@ -7,7 +7,7 @@ import '../models/user_model.dart';
 import 'add_ev/add_ev_details_screen.dart';
 import 'add_charger/add_charger_details_screen.dart';
 import 'provider_bookings_screen.dart';
-
+import 'provider_listing_screen.dart';
 import '../payment/payment_history_screen.dart';
 import '../profile/profile_screen.dart';
 
@@ -53,7 +53,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                /// HEADER
+                /// ================= HEADER =================
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(24, 60, 24, 26),
@@ -64,7 +64,6 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
-
                     borderRadius: BorderRadius.only(
                       bottomLeft: Radius.circular(28),
                       bottomRight: Radius.circular(28),
@@ -74,7 +73,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      /// TITLE
+                      /// TITLE + USER
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -109,7 +108,6 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                             ),
                           );
                         },
-
                         child: CircleAvatar(
                           radius: 22,
                           backgroundImage: user?.photoUrl != null
@@ -124,7 +122,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                   ),
                 ),
 
-                /// BODY
+                /// ================= BODY =================
                 Expanded(
                   child: SingleChildScrollView(
                     padding: const EdgeInsets.all(24),
@@ -135,7 +133,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                         _actionCard(
                           icon: Icons.electric_car,
                           title: "Add EV",
-                          subtitle: "List your EV for rental",
+                          subtitle: "List vehicle (2W / 4W)",
                           color: AppColors.secondaryGreen,
                           onTap: () {
                             Navigator.push(
@@ -147,13 +145,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         /// ADD CHARGER
                         _actionCard(
                           icon: Icons.ev_station,
                           title: "Add Charger",
-                          subtitle: "Share your charging station",
+                          subtitle: "Upload charging station",
                           color: AppColors.primaryPurple,
                           onTap: () {
                             Navigator.push(
@@ -165,13 +163,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
                         /// BOOKINGS
                         _actionCard(
                           icon: Icons.list_alt,
                           title: "Booking Requests",
-                          subtitle: "Manage customer bookings",
+                          subtitle: "Accept / Reject / Manage",
                           color: Colors.indigo,
                           onTap: () {
                             Navigator.push(
@@ -183,13 +181,13 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 20),
 
-                        /// PAYMENT HISTORY
+                        /// PAYMENTS
                         _actionCard(
                           icon: Icons.payments,
-                          title: "Payment History",
-                          subtitle: "View your earnings",
+                          title: "Earnings",
+                          subtitle: "View payment history",
                           color: Colors.orange,
                           onTap: () {
                             Navigator.push(
@@ -200,6 +198,31 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                             );
                           },
                         ),
+
+                        const SizedBox(height: 20),
+                        _actionCard(
+                          icon: Icons.inventory,
+                          title: "My Listings",
+                          subtitle: "Edit / Delete your EVs & Chargers",
+                          color: Colors.teal,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ProviderListingsScreen(),
+                              ),
+                            );
+                          },
+                        ),
+
+                        /// FUTURE (READY FOR YOU)
+                        _actionCard(
+                          icon: Icons.analytics,
+                          title: "Analytics (Soon)",
+                          subtitle: "Revenue & demand insights",
+                          color: Colors.teal,
+                          onTap: () {},
+                        ),
                       ],
                     ),
                   ),
@@ -209,7 +232,7 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
     );
   }
 
-  /// ACTION CARD
+  /// ================= ACTION CARD =================
   Widget _actionCard({
     required IconData icon,
     required String title,
@@ -220,19 +243,21 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
-
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(22),
 
         decoration: BoxDecoration(
-          color: color,
+          gradient: LinearGradient(
+            colors: [color, color.withOpacity(.85)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
           borderRadius: BorderRadius.circular(20),
-
           boxShadow: [
             BoxShadow(
               color: color.withOpacity(.35),
-              blurRadius: 16,
+              blurRadius: 18,
               offset: const Offset(0, 8),
             ),
           ],
@@ -242,10 +267,10 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
           children: [
             /// ICON
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(.2),
-                shape: BoxShape.circle,
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(icon, size: 28, color: Colors.white),
             ),
@@ -265,18 +290,16 @@ class _ProviderHomeScreenState extends State<ProviderHomeScreen> {
                       color: Colors.white,
                     ),
                   ),
-
                   const SizedBox(height: 4),
-
                   Text(
                     subtitle,
-                    style: TextStyle(color: Colors.white.withOpacity(.9)),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
             ),
 
-            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 18),
+            const Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
           ],
         ),
       ),

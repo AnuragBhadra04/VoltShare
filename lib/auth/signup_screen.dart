@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:app_links/app_links.dart';
+import '../permissions/permission_screen.dart';
+import '../role/role_selection_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -18,39 +21,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
 
-  /// ============================================
-  /// LISTEN FOR GOOGLE LOGIN SUCCESS
-  /// ============================================
   @override
   void initState() {
     super.initState();
-
-    supabase.auth.onAuthStateChange.listen((data) async {
-      final session = data.session;
-
-      if (session != null && mounted) {
-        await _createUserProfile(session.user);
-
-        Navigator.pop(context);
-      }
-    });
+    _listenForGoogleCallback();
   }
 
-  /// ============================================
-  /// DISPOSE CONTROLLERS
-  /// ============================================
   @override
   void dispose() {
     nameController.dispose();
     emailController.dispose();
     passwordController.dispose();
-
     super.dispose();
   }
 
-  /// ============================================
-  /// CREATE USER PROFILE
-  /// ============================================
+  // ===============================
+  // ✅ GOOGLE OAUTH DEEP LINK HANDLER
+  // ===============================
+  void _listenForGoogleCallback() {
+    AppLinks().uriLinkStream.listen((uri) async {
+      if (!mounted) return;
+      if (uri.scheme == 'com.example.ev_community_app' &&
+          uri.queryParameters.containsKey('code')) {
+        try {
+          await supabase.auth.getSessionFromUrl(uri);
+          await _createUserProfile(supabase.auth.currentUser!);
+          await _goToNext();
+        } catch (e) {
+          debugPrint('OAuth error: $e');
+        }
+      }
+    });
+  }
+
+  // ===============================
+  // CREATE PROFILE IF NOT EXISTS
+  // ===============================
   Future<void> _createUserProfile(User user) async {
     final existing = await supabase
         .from("users")
@@ -75,9 +81,41 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  /// ============================================
-  /// EMAIL SIGNUP
-  /// ============================================
+  // ===============================
+  // ✅ NAVIGATE AFTER LOGIN
+  // ===============================
+  Future<void> _goToNext() async {
+    if (!mounted) return;
+
+    final session = supabase.auth.currentSession;
+    if (session == null) return;
+
+    final row = await supabase
+        .from("users")
+        .select("role")
+        .eq("id", session.user.id)
+        .maybeSingle();
+
+    if (!mounted) return;
+
+    final role = row?["role"];
+
+    if (role == null || role == '') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+      );
+    } else {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const PermissionScreen()),
+      );
+    }
+  }
+
+  // ===============================
+  // EMAIL SIGNUP
+  // ===============================
   Future<void> signUpUser() async {
     final name = nameController.text.trim();
     final email = emailController.text.trim();
@@ -87,7 +125,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text("Please fill all fields")));
-
       return;
     }
 
@@ -103,19 +140,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
       if (response.user != null) {
         await _createUserProfile(response.user!);
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Account created successfully")),
-          );
+        if (!mounted) return;
 
-          Navigator.pop(context);
-        }
+        // ✅ Go directly to role selection after signup
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const RoleSelectionScreen()),
+        );
       }
     } on AuthException catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text("Error: $e")));
@@ -124,15 +163,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (mounted) setState(() => loading = false);
   }
 
-  /// ============================================
-  /// GOOGLE LOGIN
-  /// ============================================
+  // ===============================
+  // GOOGLE SIGNUP
+  // ===============================
   Future<void> signInWithGoogle() async {
     try {
       await supabase.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: 'io.supabase.flutter://login-callback',
+        redirectTo: 'com.example.ev_community_app://login-callback', // ✅ fixed
       );
+      // ✅ Navigation handled by _listenForGoogleCallback
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -140,22 +180,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  /// ============================================
-  /// UI
-  /// ============================================
+  // ===============================
+  // UI — UNCHANGED
+  // ===============================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xffF5F6FA),
-
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
-
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
-
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -165,17 +202,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       height: 200,
                     ),
                   ),
-
                   const SizedBox(height: 20),
-
                   const Text(
                     "Create Account",
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-
                   const SizedBox(height: 20),
 
-                  /// NAME
                   TextField(
                     controller: nameController,
                     decoration: InputDecoration(
@@ -192,7 +225,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   const SizedBox(height: 16),
 
-                  /// EMAIL
                   TextField(
                     controller: emailController,
                     decoration: InputDecoration(
@@ -209,15 +241,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   const SizedBox(height: 16),
 
-                  /// PASSWORD
                   TextField(
                     controller: passwordController,
                     obscureText: hidePassword,
-
                     decoration: InputDecoration(
                       hintText: "Password",
                       prefixIcon: const Icon(Icons.lock_outline),
-
                       suffixIcon: IconButton(
                         icon: Icon(
                           hidePassword
@@ -225,15 +254,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               : Icons.visibility,
                         ),
                         onPressed: () {
-                          setState(() {
-                            hidePassword = !hidePassword;
-                          });
+                          setState(() => hidePassword = !hidePassword);
                         },
                       ),
-
                       filled: true,
                       fillColor: Colors.white,
-
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -243,21 +268,17 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
                   const SizedBox(height: 25),
 
-                  /// SIGNUP BUTTON
                   SizedBox(
                     width: double.infinity,
                     height: 55,
-
                     child: ElevatedButton(
                       onPressed: loading ? null : signUpUser,
-
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xff2ECC71),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-
                       child: loading
                           ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
@@ -272,19 +293,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ),
 
                   const SizedBox(height: 30),
-
                   const Center(child: Text("OR")),
-
                   const SizedBox(height: 20),
 
-                  /// GOOGLE BUTTON
                   GestureDetector(
                     onTap: signInWithGoogle,
-
                     child: Container(
                       width: double.infinity,
                       height: 55,
-
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -295,14 +311,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           ),
                         ],
                       ),
-
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.g_mobiledata, size: 28),
-
                           SizedBox(width: 10),
-
                           Text(
                             "Continue with Google",
                             style: TextStyle(

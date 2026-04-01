@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'routes.dart';
 import '../core/constants/colors.dart';
+import '../splash/splash_screen.dart';
 
 class EVCommunityApp extends StatelessWidget {
   const EVCommunityApp({super.key});
 
-  /// Global navigator key (useful for push notifications later)
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
@@ -14,30 +14,21 @@ class EVCommunityApp extends StatelessWidget {
     return MaterialApp(
       title: 'VoltShare',
       debugShowCheckedModeBanner: false,
-
-      navigatorKey: navigatorKey,
-
-      /// GLOBAL THEME
+      navigatorKey: EVCommunityApp.navigatorKey,
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Roboto',
-
         scaffoldBackgroundColor: AppColors.background,
-
         colorScheme: const ColorScheme.light(
           primary: AppColors.primaryPurple,
           secondary: AppColors.secondaryGreen,
         ),
-
-        /// APP BAR
         appBarTheme: const AppBarTheme(
           elevation: 0,
           centerTitle: true,
           backgroundColor: Colors.transparent,
           foregroundColor: Colors.black,
         ),
-
-        /// INPUT FIELDS
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
@@ -50,8 +41,6 @@ class EVCommunityApp extends StatelessWidget {
             borderSide: BorderSide.none,
           ),
         ),
-
-        /// BUTTON STYLE
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             elevation: 0,
@@ -62,10 +51,11 @@ class EVCommunityApp extends StatelessWidget {
           ),
         ),
       ),
-
-      /// ROUTING
       initialRoute: AppRoutes.splash,
       routes: AppRoutes.routes,
+      onUnknownRoute: (settings) {
+        return MaterialPageRoute(builder: (_) => const SplashScreen());
+      },
     );
   }
 }
